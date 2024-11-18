@@ -1,0 +1,370 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Making your first Phaser 3 Game - Part 10</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.85.2/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'arcade',
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+    var game = new Phaser.Game(config);
+    
+    class Line extends Phaser.Geom.Line {
+        constructor(name, scene, graphics, x1, y1, x2, y2, player) {
+            super(x1, y1, x2, y2);
+
+            this.name = name
+            this.objects = []
+            this.graphics = graphics
+            this.stroke()
+            this.start = new Teleporteur(name + "-start", scene, x1, y1, 'portal', player)
+            this.start.addLine(this)
+            this.objects.push(this.start)
+            this.end = new Teleporteur(name + "-end", scene, x2, y2, 'portal', player)
+            this.end.addLine(this)
+            this.end.setBrother(this.start)
+            this.start.setBrother(this.end)
+            this.objects.push(this.end)
+        }
+        addObjects = function (objects) {
+            this.objects.push(...objects)
+        }
+        stroke = function () {
+            this.graphics.strokeLineShape(this)
+        }
+    }
+
+    class Player extends Phaser.GameObjects.Sprite {
+        constructor(scene, x, y, texture) {
+            super(scene, x, y, texture);
+            
+            // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
+            scene.sys.displayList.add(this);
+            scene.sys.updateList.add(this);
+            scene.physics.world.enableBody(this);
+            this.setName("PlayerFlower")
+
+            this.lines = []
+            this.object = this
+            this.depth = 10
+        }
+        getObjectsReachable() {
+            const objects_reachable = []
+            this.lines.forEach(line => {
+                // console.log(objects_reachable);
+                objects_reachable.push(...line.objects)
+            });
+            
+            return  objects_reachable;
+        }
+        setObject(object) {
+            this.object = object
+        }
+        addLine(line) {
+            this.lines.push(line)
+        }
+        setLines(lines) {
+            this.lines = lines
+        }
+    }
+    
+    class Dude extends Phaser.GameObjects.Sprite { // 
+        constructor(name, scene, x, y, texture, player) {
+            super(scene, x, y, texture);
+            
+            // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
+            scene.sys.displayList.add(this);
+            scene.sys.updateList.add(this);
+            scene.physics.world.enableBody(this);
+
+            this.name = name
+            this.setInteractive()
+            this.lines = []
+            this.player = player
+            this.glow = this.preFX.addGlow().setActive(false)
+            this.on("pointerover", () => {
+                if (this.isReachable()) {
+                    this.glow.setActive(true)
+                }
+            }).on("pointerout", () => {
+                this.glow.setActive(false)
+            })
+            
+            scene.objects.push(this)
+        }
+        isReachable() {
+            return this.player.getObjectsReachable().includes(this)
+        }
+        addLine(line) {
+            this.lines.push(line)
+        }
+    }
+    
+    class Teleporteur extends Phaser.GameObjects.Sprite { // 
+        constructor(name, scene, x, y, texture, player) {
+            super(scene, x, y, texture);
+            
+            // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
+            scene.sys.displayList.add(this);
+            scene.sys.updateList.add(this);
+            scene.physics.world.enableBody(this);
+
+            this.name = name
+            this.setInteractive()
+            this.lines = []
+            this.player = player
+            this.glow = this.preFX.addGlow().setActive(false)
+            this.on("pointerover", () => {
+                if (this.isReachable()) {
+                    this.glow.setActive(true)
+                }
+            }).on("pointerout", () => {
+                this.glow.setActive(false)
+            })
+            this.brother = null
+            scene.objects.push(this)
+            this.anims.play('portal')
+        }
+        isReachable() {
+            return this.player.getObjectsReachable().includes(this)
+        }
+        addLine(line) {
+            this.lines.push(line)
+        }
+        setBrother(teleporteur) {
+            this.brother = teleporteur
+        }
+    }
+    
+    class Dragon extends Phaser.GameObjects.Sprite { // 
+        constructor(name, scene, x, y, texture, player) {
+            super(scene, x, y, texture);
+            
+            // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
+            scene.sys.displayList.add(this);
+            scene.sys.updateList.add(this);
+            scene.physics.world.enableBody(this);
+
+            this.depth = 20
+            this.name = name
+            this.setInteractive()
+            this.lines = []
+            this.player = player
+            this.glow = this.preFX.addGlow().setActive(false)
+            // this.on("pointerover", () => {
+            //     this.anims.play('dragon')
+            // }).on("pointerout", () => {
+            //     this.anims.stop()
+            //     this.setFrame(0)
+            // })
+            
+            scene.objects.push(this)
+        }
+        isReachable() {
+            return this.player.getObjectsReachable().includes(this)
+        }
+        addLine(line) {
+            this.lines.push(line)
+        }
+    }
+    
+    class Intersection extends Phaser.GameObjects.Sprite { // 
+        constructor(name, scene, x, y, texture, player) {
+            super(scene, x, y, texture);
+            
+            // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
+            scene.sys.displayList.add(this);
+            scene.sys.updateList.add(this);
+            scene.physics.world.enableBody(this);
+
+            this.name = name
+            this.setInteractive()
+            this.lines = []
+            this.player = player
+            this.glow = this.preFX.addGlow().setActive(false)
+            this.on("pointerover", () => {
+                if (this.isReachable()) {
+                    this.glow.setActive(true)
+                }
+            }).on("pointerout", () => {
+                this.glow.setActive(false)
+            })
+
+            scene.objects.push(this)
+        }
+        isReachable() {
+            return this.player.getObjectsReachable().includes(this)
+        }
+        addLine(line) {
+            this.lines.push(line)
+        }
+    }
+
+    function preload()
+    {
+        this.load.image('recommencer', 'assets/recommencer.png');
+        this.load.spritesheet('dragon', 'assets/dragon3.png', { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', { frameWidth: 32, frameHeight: 48 });
+        // this.load.setBaseURL('https://cdn.phaserfiles.com/v385');
+        this.load.image('flower', 'https://labs.phaser.io/assets/sprites/flower-exo.png');
+        this.load.image('cursor', 'https://labs.phaser.io/assets/sprites/drawcursor.png');
+        this.load.spritesheet('diamonds', 'https://labs.phaser.io/assets/sprites/diamonds32x24x5.png', { frameWidth: 32, frameHeight: 24 });
+        this.load.spritesheet('portal', 'assets/portal.png', { frameWidth: 46, frameHeight: 48 });
+    }
+
+    function create()
+    {
+        const scene = this
+
+        this.anims.create({
+            key: 'portal',
+            frames: this.anims.generateFrameNumbers('portal', { start: 0, end: 13 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'dude',
+            frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'intersection',
+            frames: this.anims.generateFrameNumbers('diamonds', { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'dragon',
+            frames: this.anims.generateFrameNumbers('dragon', { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.objects = []
+
+        this.player = new Player(this, 150, 450, 'flower')
+
+        this.graphics = this.add.graphics({ lineStyle: { width: 4, color: 0xaa00aa } })
+        this.line1 = new Line("line1", scene, this.graphics, 100, 500, 500, 100, this.player)
+        this.line2 = new Line("line2", scene, this.graphics, 100, 100, 550, 550, this.player)
+
+        this.player.addLine(this.line1);
+        
+        this.dude1 = new Dude("dude1", scene, 200, 400, 'dude', this.player);
+        this.dude1.addLine(this.line1)
+        this.dude2 = new Dude("dude2", scene, 400, 200, 'dude', this.player);
+        this.dude2.addLine(this.line1)
+        this.dude3 = new Dude("dude3", scene, 500, 500, 'dude', this.player);
+        this.dude3.addLine(this.line2)
+        this.dude4 = new Dude("dude4", scene, 200, 200, 'dude', this.player);
+        this.dude4.addLine(this.line2)
+        this.dudes = [this.dude1, this.dude2, this.dude3, this.dude4];
+        
+        this.intersection = new Intersection("intersection", scene, 300, 300, 'diamonds', this.player);
+        this.intersection.addLine(this.line1)
+        this.intersection.addLine(this.line2)
+        this.intersections = [this.intersection];
+
+        this.dragon1 = new Dragon("dragon1", scene, 400, 400, 'dragon', this.player);
+        this.dragon1.addLine(this.line2)
+
+        // this.objects = [...this.intersections, ...this.dudes];
+
+        this.line1.addObjects([this.dude1, this.dude2, this.intersection])
+        this.line2.addObjects([this.dude3, this.dude4, this.intersection])
+
+        this.target = new Phaser.Math.Vector2();
+        const cursor = this.add.image(0, 0, 'cursor').setVisible(false);
+
+        // On ne peut cliquer que sur un seul élément
+        this.input.setTopOnly(false);
+
+        this.objects.forEach(object => {
+            object.on('pointerdown', (pointer, gameObjects) => {
+                if (object.isReachable()) {
+                    // Move at 200 px/s:
+                    this.player.setObject(object)
+                    if (this.player.object.constructor.name != "Intersection") {
+                        this.player.setLines(this.player.object.lines)
+                    }
+                    this.physics.moveToObject(this.player, object, 200);
+                }
+            })
+        });
+
+
+    }
+
+    function update()
+    {
+        this.objects.forEach(object => {
+            if (object.isReachable()) {
+                // Add tween animation !!!
+            } else {
+                object.scale = 1
+            }
+        });
+        //  4 is our distance tolerance, i.e. how close the player can get to the target
+        //  before it is considered as being there. The faster it moves, the more tolerance is required.
+        const tolerance = 4;
+
+        // const tolerance = 200 * 1.5 / this.game.loop.targetFps;
+        const distance = Phaser.Math.Distance.BetweenPoints(this.player, this.player.object);
+        if (this.player.body.speed > 0)
+        {
+            if (distance < tolerance)
+            {
+                if (this.player.object.constructor.name == "Intersection") {
+                    this.player.setLines(this.player.object.lines)
+                }
+                this.player.body.reset(this.player.object.x, this.player.object.y);
+                if (this.player.object.constructor.name == "Teleporteur") {
+                    this.player.body.reset(this.player.object.brother.x, this.player.object.brother.y);
+                }
+            }
+        }
+        
+        const toleranceToDragon1 = 20;
+        const distanceToDragon1 = Phaser.Math.Distance.BetweenPoints(this.player, this.dragon1);
+        if (this.player.body.speed > 0)
+        {
+            if (distanceToDragon1 < toleranceToDragon1)
+            {
+                this.player.body.reset(this.dragon1.x, this.dragon1.y);
+                this.dragon1.anims.play('dragon')
+                
+                const restart = this.add.image(500, 300, 'recommencer').setInteractive();
+                restart.on('pointerdown', (event) => {
+                    this.scene.restart();
+                });
+            }
+        }
+    }
+
+</script>
+
+</body>
+</html>

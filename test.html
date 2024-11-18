@@ -1,0 +1,50 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>TEST</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.85.2/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- <script type="module" src="Boot.js"></script> -->
+<script type="text/javascript">
+
+    var config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    };
+
+    var game = new Phaser.Game(config);
+
+    function preload ()
+    {
+    }
+
+    function create ()
+    {
+        let line = this.add.line(undefined, undefined, 0, 0, 600, 600, '0xff0000', 1)
+        let line2 = new Phaser.GameObjects.Line(this, 10, 80, 70, 0, 600, 600, '0xff0000', 1)
+        this.sys.displayList.add(line2);
+        // scene.sys.updateList.add(this);
+    }
+
+    function update ()
+    {
+    }
+
+</script>
+
+</body>
+</html>
