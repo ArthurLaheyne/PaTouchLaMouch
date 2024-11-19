@@ -16,11 +16,11 @@ export class MainMenu extends Phaser.Scene
         this.background.displayWidth = this.sys.canvas.width;
         this.background.displayHeight = this.sys.canvas.height;
 
-        const logo = this.add.image(400, 300, 'logo');
+        const logo = this.add.image(400, 200, 'patouchlamouch');
 
         this.tweens.add({
             targets: logo,
-            y: 270,
+            y: 220,
             duration: 1000,
             ease: 'Bounce'
         });
@@ -28,7 +28,7 @@ export class MainMenu extends Phaser.Scene
         const clickStartText = [
             "Click to Start!"
         ]
-        this.clickStart = this.add.text(512, 500, clickStartText, textStyle).setAlign('center').setOrigin(0.5).setInteractive();
+        this.clickStart = this.add.text(400, 450, clickStartText, textStyle).setAlign('center').setOrigin(0.5).setInteractive();
         this.clickStart.on('pointerdown', () => {
             this.scene.start('Game');
             this.scale.startFullscreen();
@@ -55,7 +55,7 @@ export class MainMenu extends Phaser.Scene
         const mode_sandbox = [
             "Mode Sandbox"
         ]
-        this.modeSandbox = this.add.text(512, 550, mode_sandbox, textStyle).setAlign('center').setOrigin(0.5).setInteractive()
+        this.modeSandbox = this.add.text(400, 500, mode_sandbox, textStyle).setAlign('center').setOrigin(0.5).setInteractive()
         this.modeSandbox.on('pointerover', () => {
             this.tweens.add({
                 targets: this.modeSandbox,
@@ -76,6 +76,33 @@ export class MainMenu extends Phaser.Scene
         });
         this.modeSandbox.on('pointerdown', () => {
             this.scene.start('Sandbox');
+            this.scale.startFullscreen();
+        });
+
+        const mode_niveaux = [
+            "Niveaux"
+        ]
+        this.modeNiveaux = this.add.text(400, 550, mode_niveaux, textStyle).setAlign('center').setOrigin(0.5).setInteractive()
+        this.modeNiveaux.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.modeNiveaux,
+                scaleX: 1.1,
+                scaleY: 1.1,
+                duration: 200,
+                ease: 'Linear'
+            });
+        });
+        this.modeNiveaux.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.modeNiveaux,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 200,
+                ease: 'Linear'
+            });
+        });
+        this.modeNiveaux.on('pointerdown', () => {
+            this.scene.start('Niveaux');
             this.scale.startFullscreen();
         });
     }

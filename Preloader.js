@@ -33,7 +33,7 @@ export class Preloader extends Phaser.Scene
 
         this.load.image("drag", "assets/drag.png");
         this.load.image("background", "assets/background.png");
-        this.load.image("logo", "assets/PaTouch-LaMouch.png");
+        this.load.image("patouchlamouch", "assets/PaTouch-LaMouch.png");
         this.load.atlas('coin', 'assets/coin.png', 'assets/coin.json');
         this.load.image('ocean', 'assets/oceanx700.jpg');
         this.load.image('bravo', 'assets/bravo.png');
