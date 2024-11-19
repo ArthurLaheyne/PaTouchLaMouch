@@ -1,4 +1,4 @@
-import { Linee, Lineee, Handle, Intersectionn, Dragonn, Depart } from './Objects.js';
+import { Lineee, Handle, Intersectionn, Dragonn, Depart, Arriveee } from './Objects.js';
 import { Magnetize } from './Magnetize.js';
 
 export class Sandbox extends Phaser.Scene
@@ -103,7 +103,10 @@ export class Sandbox extends Phaser.Scene
         this.drawing_dragon;
         this.dragons = [];
         let magnetize = new Magnetize(scene, this.intersections.flat());
+        this.drawing_depart;
         this.depart = null
+        this.drawing_arrivee;
+        this.arrivee = null
 
 
         // MODES
@@ -114,6 +117,7 @@ export class Sandbox extends Phaser.Scene
         this.modeText = this.add.text(0, 60, "Dragon (g)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         this.modeText = this.add.text(0, 90, "Suppression (s)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         this.modeText = this.add.text(0, 120, "Depart (q)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
+        this.modeText = this.add.text(0, 150, "Arrivée (a)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         const textStyle = { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' };
         this.modeText = this.add.text(800, 600, "mode : " + this.mode, textStyle).setAlign('right').setOrigin(1)
 
@@ -155,6 +159,9 @@ export class Sandbox extends Phaser.Scene
                     delete dragon.del
                 }
             });
+            if (scene.drawing_depart) {
+                scene.drawing_depart.destroy();
+            }
             if (scene.depart) {
                 if (scene.depart.handle) {
                     scene.depart.handle.destroy()
@@ -163,6 +170,19 @@ export class Sandbox extends Phaser.Scene
                 if (scene.depart.del) {
                     scene.depart.del.destroy()
                     delete scene.depart.del
+                }
+            }
+            if (scene.drawing_arrivee) {
+                scene.drawing_arrivee.destroy();
+            }
+            if (scene.arrivee) {
+                if (scene.arrivee.handle) {
+                    scene.arrivee.handle.destroy()
+                    delete scene.arrivee.handle
+                }
+                if (scene.arrivee.del) {
+                    scene.arrivee.del.destroy()
+                    delete scene.arrivee.del
                 }
             }
         }
@@ -247,12 +267,12 @@ export class Sandbox extends Phaser.Scene
 
             if (this.lines.length > 0 && scene.depart == null) {
                 // Apparition d'un sprite depart suivant le curseur
-                this.drawing_start = scene.add.sprite(scene.input.mousePointer.position.x, scene.input.mousePointer.position.y, 'depart')
+                this.drawing_depart = scene.add.sprite(scene.input.mousePointer.position.x, scene.input.mousePointer.position.y, 'depart')
                 this.input.on('pointermove', function(pointer)
                 {
                     if (scene.depart == null) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
-                        this.drawing_start.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
+                        this.drawing_depart.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     }
                 }, this);
 
@@ -262,8 +282,41 @@ export class Sandbox extends Phaser.Scene
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         scene.depart = new Depart("depart", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'depart');
                         scene.depart.line_key = magnetPoint.line_key;
-                        this.drawing_start.destroy();
-                        delete this.drawing_start;
+                        this.drawing_depart.destroy();
+                        delete this.drawing_depart;
+                    }
+                }, this);                    
+            }
+        });
+
+        
+        // ARRIVEE EVENTS 
+        this.input.keyboard.on('keydown-A', event =>
+        {
+            cleanKeyDown();
+
+            this.mode = "arrivee"
+            this.modeText.setText(this.mode)
+
+            if (this.lines.length > 0 && scene.arrivee == null) {
+                // Apparition d'un sprite depart suivant le curseur
+                this.drawing_arrivee = scene.add.sprite(scene.input.mousePointer.position.x, scene.input.mousePointer.position.y, 'flag')
+                this.input.on('pointermove', function(pointer)
+                {
+                    if (scene.arrivee == null) {
+                        let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
+                        this.drawing_arrivee.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
+                    }
+                }, this);
+
+                this.input.on('pointerdown', function(pointer)
+                {
+                    if (scene.arrivee == null) {
+                        let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
+                        scene.arrivee = new Arriveee("arrivee", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'flag');
+                        scene.arrivee.line_key = magnetPoint.line_key;
+                        this.drawing_arrivee.destroy();
+                        delete this.drawing_arrivee;
                     }
                 }, this);                    
             }
@@ -308,6 +361,16 @@ export class Sandbox extends Phaser.Scene
                                 scene.depart.setPosition(pointPourcentage.x, pointPourcentage.y);
                                 scene.depart.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
                             }
+                            if (scene.arrivee && scene.arrivee.line_key == key) {
+                                let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
+                                let pointA = new Phaser.Geom.Point(line.geom.x1, line.geom.y1)
+                                let distance = Phaser.Math.Distance.BetweenPoints(pointA, scene.arrivee)
+                                let lineLength = Phaser.Geom.Line.Length(geomLine);
+                                let pourcentage = distance / lineLength;
+                                let pointPourcentage = geomLine.getPoint(pourcentage);                            
+                                scene.arrivee.setPosition(pointPourcentage.x, pointPourcentage.y);
+                                scene.arrivee.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
+                            }
                             this.x = magnetPoint.x
                             this.y = magnetPoint.y
                         });
@@ -345,6 +408,16 @@ export class Sandbox extends Phaser.Scene
                                 let pointPourcentage = geomLine.getPoint(pourcentage);                            
                                 scene.depart.setPosition(pointPourcentage.x, pointPourcentage.y);
                                 scene.depart.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
+                            }
+                            if (scene.arrivee && scene.arrivee.line_key == key) {
+                                let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
+                                let pointB = new Phaser.Geom.Point(line.geom.x2, line.geom.y2)
+                                let distance = Phaser.Math.Distance.BetweenPoints(pointB, scene.arrivee)
+                                let lineLength = Phaser.Geom.Line.Length(geomLine);
+                                let pourcentage = (lineLength - distance) / lineLength;
+                                let pointPourcentage = geomLine.getPoint(pourcentage);                            
+                                scene.arrivee.setPosition(pointPourcentage.x, pointPourcentage.y);
+                                scene.arrivee.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
                             }
                             this.x = magnetPoint.x
                             this.y = magnetPoint.y
@@ -389,6 +462,19 @@ export class Sandbox extends Phaser.Scene
                         depart.line_key = magnetPoint.line_key
                         depart.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         depart.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
+                    });
+                }
+            }  
+            if (scene.arrivee) {
+                let arrivee = scene.arrivee;
+                if (!arrivee.handle) {
+                    arrivee.handle = new Handle(arrivee.name, scene, arrivee.x, arrivee.y, 'drag', arrivee)
+                    arrivee.handle.on('drag', function (pointer, dragX, dragY) {
+                        let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
+                        // Retirer le dragon des autres lignes
+                        arrivee.line_key = magnetPoint.line_key
+                        arrivee.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
+                        arrivee.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
                 }
             }           
@@ -441,6 +527,17 @@ export class Sandbox extends Phaser.Scene
                     delete scene.depart
                 })
             }
+            if (scene.arrivee) {
+                scene.arrivee.del = this.physics.add.sprite(scene.arrivee.x, scene.arrivee.y, 'delete');
+                scene.arrivee.del.depth = 20;
+                scene.arrivee.del.setInteractive()
+                scene.arrivee.del.on('pointerdown', (pointer, justOver) => {
+                    scene.arrivee.del.destroy();
+                    delete scene.arrivee.del;
+                    scene.arrivee.destroy();
+                    delete scene.arrivee
+                })
+            }
 
         });
 
@@ -462,6 +559,12 @@ export class Sandbox extends Phaser.Scene
                 delete scene.depart.del
                 scene.depart.destroy()
                 delete scene.depart
+            }
+            if (scene.arrivee && scene.arrivee.line_key == key) {
+                scene.arrivee.del.destroy()
+                delete scene.arrivee.del
+                scene.arrivee.destroy()
+                delete scene.arrivee
             }
         }
 

@@ -230,7 +230,22 @@ export class Dragonn extends Phaser.GameObjects.Sprite { //
     }
 }
 
-export class Depart extends Phaser.GameObjects.Sprite { // 
+export class Depart extends Phaser.GameObjects.Sprite {
+    constructor(name, scene, x, y, texture) {
+        super(scene, x, y, texture);
+        
+        // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
+        scene.sys.displayList.add(this);
+        scene.sys.updateList.add(this);
+        scene.physics.world.enableBody(this);
+
+        this.name = name
+        this.depth = 1
+        this.setInteractive()
+    }
+}
+
+export class Arriveee extends Phaser.GameObjects.Sprite {
     constructor(name, scene, x, y, texture) {
         super(scene, x, y, texture);
         
