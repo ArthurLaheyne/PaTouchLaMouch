@@ -225,6 +225,7 @@ export class Dragonn extends Phaser.GameObjects.Sprite { //
         scene.physics.world.enableBody(this);
 
         this.name = name
+        this.lines = []
         this.depth = 1
         this.setInteractive()
     }

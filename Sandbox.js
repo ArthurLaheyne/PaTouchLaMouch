@@ -50,7 +50,7 @@ export class Sandbox extends Phaser.Scene
             });
         });
         const button_recommencer = this.add.image(800 - 45, 135, 'restart', 0).setOrigin(0.5, 0.5).setInteractive();
-        button_recommencer.on('pointerdown', (event) => {
+        button_recommencer.on('pointerup', (event) => {
             this.scene.restart();
         });
         button_recommencer.on('pointerover', () => {
@@ -72,7 +72,7 @@ export class Sandbox extends Phaser.Scene
             });
         });
         const button_back = this.add.image(800 - 45, 225, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
-        button_back.on('pointerdown', (event) => {
+        button_back.on('pointerup', (event) => {
             this.scene.start('MainMenu');
         });
         button_back.on('pointerover', () => {
@@ -118,12 +118,14 @@ export class Sandbox extends Phaser.Scene
         this.modeText = this.add.text(0, 90, "Suppression (s)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         this.modeText = this.add.text(0, 120, "Depart (q)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         this.modeText = this.add.text(0, 150, "Arrivée (a)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
+        this.modeText = this.add.text(0, 180, "Exporter (x)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         const textStyle = { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' };
         this.modeText = this.add.text(800, 600, "mode : " + this.mode, textStyle).setAlign('right').setOrigin(1)
 
+
         function cleanKeyDown() {
             scene.input.off();
-            scene.input.off('pointerdown');
+            scene.input.off('pointerup');
             scene.input.off('pointerover');
             scene.input.off('pointermove');
             if (scene.drawing_dragon) {
@@ -196,7 +198,7 @@ export class Sandbox extends Phaser.Scene
             this.modeText.setText(this.mode)
 
             // LINE DRAWING AND MAGNETIZE
-            this.input.on('pointerdown', (pointer) => {
+            this.input.on('pointerup', (pointer) => {
                 
                 if (this.mode == "line") {
                     // Si la ligne n'existait pas, on la crée
@@ -246,10 +248,11 @@ export class Sandbox extends Phaser.Scene
                     this.drawing_dragon.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                 }, this);
 
-                this.input.on('pointerdown', function(pointer)
+                this.input.on('pointerup', function(pointer)
                 {
                     let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                     let dragon = new Dragonn("dragon1", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'dragon');
+                    dragon.lines.push(magnetPoint.line);
                     magnetPoint.line.dragon_keys.push(scene.dragons.length);
                     scene.dragons.push(dragon);
                 }, this);                    
@@ -276,7 +279,7 @@ export class Sandbox extends Phaser.Scene
                     }
                 }, this);
 
-                this.input.on('pointerdown', function(pointer)
+                this.input.on('pointerup', function(pointer)
                 {
                     if (scene.depart == null) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
@@ -309,7 +312,7 @@ export class Sandbox extends Phaser.Scene
                     }
                 }, this);
 
-                this.input.on('pointerdown', function(pointer)
+                this.input.on('pointerup', function(pointer)
                 {
                     if (scene.arrivee == null) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
@@ -493,13 +496,13 @@ export class Sandbox extends Phaser.Scene
                 if (line != undefined) {
                     if (!line.del_start) {
                         line.del_start = new Handle(line.name + "-del-start", scene, line.geom.x1, line.geom.y1, 'delete', line)
-                        line.del_start.on('pointerdown', (pointer, justOver) => {
+                        line.del_start.on('pointerup', (pointer, justOver) => {
                             deleteLine(key)
                         })
                     }
                     if (!line.del_end) {
                         line.del_end = new Handle(line.name + "-del-start", scene, line.geom.x2, line.geom.y2, 'delete', line)
-                        line.del_end.on('pointerdown', (pointer, justOver) => {
+                        line.del_end.on('pointerup', (pointer, justOver) => {
                             deleteLine(key)
                         })
                     }
@@ -511,7 +514,7 @@ export class Sandbox extends Phaser.Scene
                     dragon.del = this.physics.add.sprite(dragon.x, dragon.y, 'delete');
                     dragon.del.depth = 20;
                     dragon.del.setInteractive()
-                    dragon.del.on('pointerdown', (pointer, justOver) => {
+                    dragon.del.on('pointerup', (pointer, justOver) => {
                         deleteDragon(key)
                     })
                 }
@@ -520,7 +523,7 @@ export class Sandbox extends Phaser.Scene
                 scene.depart.del = this.physics.add.sprite(scene.depart.x, scene.depart.y, 'delete');
                 scene.depart.del.depth = 20;
                 scene.depart.del.setInteractive()
-                scene.depart.del.on('pointerdown', (pointer, justOver) => {
+                scene.depart.del.on('pointerup', (pointer, justOver) => {
                     scene.depart.del.destroy();
                     delete scene.depart.del;
                     scene.depart.destroy();
@@ -531,7 +534,7 @@ export class Sandbox extends Phaser.Scene
                 scene.arrivee.del = this.physics.add.sprite(scene.arrivee.x, scene.arrivee.y, 'delete');
                 scene.arrivee.del.depth = 20;
                 scene.arrivee.del.setInteractive()
-                scene.arrivee.del.on('pointerdown', (pointer, justOver) => {
+                scene.arrivee.del.on('pointerup', (pointer, justOver) => {
                     scene.arrivee.del.destroy();
                     delete scene.arrivee.del;
                     scene.arrivee.destroy();
@@ -540,6 +543,97 @@ export class Sandbox extends Phaser.Scene
             }
 
         });
+
+        
+        // EXPORT
+        this.input.keyboard.on('keydown-X', event => {
+            let json = {
+                lines: [],
+                intersections: [],
+                dragons: [],
+                start: {},
+                end: {},
+            }
+            let jsonLines = []
+            scene.lines.forEach((line, key) => {
+                console.log(line);
+                
+                if (line) {
+                    let jsonLine = {
+                        "name": key,
+                        "start": {
+                            "x": line.geom.x1,
+                            "y": line.geom.y1
+                        },
+                        "end": {
+                            "x": line.geom.x2,
+                            "y": line.geom.y2
+                        }
+                    }
+                    jsonLines.push(jsonLine);
+                }
+            });
+            json.lines = jsonLines
+            let jsonIntersections = []
+            scene.intersections.forEach((lineA_intersections, lineA_key) => {
+                lineA_intersections.forEach((lineAB_intersection, lineB_key) => {
+                    let lineA_index = jsonLines.findIndex((line) => {
+                        return line.name == lineA_key;
+                    })
+                    let lineB_index = jsonLines.findIndex((line) => {
+                        return line.name == lineB_key;
+                    })
+                    let jsonIntersection = {
+                        "name": lineA_key + '-' + lineB_key,
+                        "position": {
+                            "x": lineAB_intersection.x,
+                            "y": lineAB_intersection.y
+                        },
+                        "lines": [lineA_index, lineB_index]
+                    }
+                    jsonIntersections.push(jsonIntersection);
+                });
+            });
+            json.intersections = jsonIntersections
+            let jsonDragons = []
+            scene.dragons.forEach((dragon, dragon_key) => {
+                let jsonDragon = {
+                    "name": dragon_key,
+                    "position": {
+                        "x": dragon.x,
+                        "y": dragon.y
+                    },
+                    "lines": [
+                        0
+                    ]
+                }
+                jsonDragons.push(jsonDragon);
+            });
+            json.dragons = jsonDragons
+            if (scene.depart) {
+                json.start = {
+                    x: scene.depart.x,
+                    y: scene.depart.y
+                }
+            }
+            if (scene.arrivee) {
+                json.end = {
+                    x: scene.arrivee.x,
+                    y: scene.arrivee.y
+                }
+            }
+            fetch("https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch", {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify({json}),
+                headers: {
+                    "Content-type": "application/json; charset=UTF-8"
+                }
+            })
+            .then((response) => response.json())
+            .then((json) => console.log(json));;
+        });
+
 
         function deleteLine(key) {
             scene.lines[key].dragon_keys.forEach(dragon_key => {
