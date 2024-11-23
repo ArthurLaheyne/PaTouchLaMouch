@@ -9,22 +9,10 @@ export class Niveau extends Phaser.Scene
 
     init (data)
     {
-        console.log('init', data);
-
         this.level_id = data.level_id;
     }
 
     preload() {
-        this.load.json('levelData', 'niveau1.json');
-        // fetch("https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch/levels", {
-        //     method: "GET",
-        //     mode: "no-cors",
-        //     headers: {
-        //         "Content-type": "application/json; charset=UTF-8"
-        //     }
-        // })
-        // .then((response) => console.log(response))
-        // .then((json) => console.log(json));
     }
 
     async create()
@@ -91,7 +79,7 @@ export class Niveau extends Phaser.Scene
         
         const button_back = this.add.image(800 - 45, 225, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
         button_back.on('pointerdown', (event) => {
-            this.scene.start('MainMenu');
+            this.scene.start('Niveaux');
         });
         button_back.on('pointerover', () => {
             this.tweens.add({
@@ -136,46 +124,40 @@ export class Niveau extends Phaser.Scene
             frames: this.anims.generateFrameNumbers('dragon', { start: 0, end: 3 }),
             frameRate: 10,
             repeat: -1
-        });
-
-        // let levelData = this.cache.json.get('levelData');
+        });       
         
-
-        scene.objects = []
-
-        scene.player = new Player(this, 300, 300, 'flower')
-
+        
+    
         scene.graphics = this.add.graphics({ lineStyle: { width: 4, color: 0xaa00aa } })
-
-
+        scene.objects = []
+        scene.player;
         scene.lines = [];
         scene.intersections = [];
         scene.dragons = [];
-
-
-        const data = await getData();
-        let levelData = JSON.parse(data.Item.json);
-        console.log(levelData);
         
         
         
         async function getData() {
             const url = "https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch/levels/" + scene.level_id;
             try {
-              const response = await fetch(url);
-              if (!response.ok) {
+                const response = await fetch(url);
+                if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`);
               }
               const json = await response.json();
               return json
             } catch (error) {
-              console.error(error.message);
+                console.error(error.message);
             }
         }
+        const data = await getData();
+        let levelData = JSON.parse(data.Item.json);
 
+        console.log(levelData);
+        
 
-
-
+        scene.player = new Player(this, levelData.start.x, levelData.start.y, 'flower')
+        
         levelData.lines.forEach((lineData, key) => {
             let line = new Line(`line${key}`, scene, this.graphics, lineData.start.x, lineData.start.y, lineData.end.x, lineData.end.y, this.player)
             this.lines.push(line);
@@ -201,7 +183,7 @@ export class Niveau extends Phaser.Scene
             scene.dragons.push(dragon);
         });
 
-        this.arrivee = new Arrivee("arrivee", scene, 550, 300, 'flag', this.player);
+        this.arrivee = new Arrivee("arrivee", scene, levelData.end.x, levelData.end.y, 'flag', this.player);
         this.arrivee.addLine(scene.lines[0])
         scene.lines[0].addObjects([this.arrivee])
 
@@ -231,66 +213,69 @@ export class Niveau extends Phaser.Scene
 
     update()
     {
-        this.objects.forEach(object => {
-            if (object.isReachable()) {
-                // Add tween animation !!!
-            } else {
-                object.scale = 1
-            }
-        });
-        //  4 is our distance tolerance, i.e. how close the player can get to the target
-        //  before it is considered as being there. The faster it moves, the more tolerance is required.
-        const tolerance = 4;
+        const scene = this;
+        if (scene.player && scene.player.body) {
+            this.objects.forEach(object => {
+                if (object.isReachable()) {
+                    // Add tween animation !!!
+                } else {
+                    object.scale = 1
+                }
+            });
+            //  4 is our distance tolerance, i.e. how close the player can get to the target
+            //  before it is considered as being there. The faster it moves, the more tolerance is required.
+            const tolerance = 4;
 
-        // const tolerance = 200 * 1.5 / this.game.loop.targetFps;
-        if (this.player.body.speed > 0)
-        {
-            const distance = Phaser.Math.Distance.BetweenPoints(this.player, this.player.object);
-            if (distance < tolerance)
-            {
-                this.player.body.reset(this.player.object.x, this.player.object.y);
-                if (this.player.object.constructor.name == "Intersection") {
-                    this.player.setLines(this.player.object.lines)
-                }
-                else if (this.player.object.constructor.name == "Teleporteur") {
-                    let teleporteur = this.player.object
-                    if (!teleporteur.disabled) {
-                        this.player.body.reset(teleporteur.brother.x, teleporteur.brother.y);
-                        this.player.setObject(teleporteur.brother)
-                        this.player.setLines(teleporteur.brother.lines)
-                        if (teleporteur.isConsumable) {
-                            this.player.setObject(null)
-                            teleporteur.destroy(true)
-                            teleporteur.brother.destroy(true)
-                        }
-                    }
-                }
-                else if (this.player.object.constructor.name == "Arrivee") {
-                    this.player.setLines(this.player.object.lines)
-                    let bravo = this.add.image(550, 400, 'bravo').setInteractive();
-                    bravo.on('pointerdown', (event) => {
-                        this.scene.restart();
-                    });
-                }
-            }
-        }
-        
-        const toleranceToDragon = 20;
-        this.dragons.forEach( (dragon) => {
-            let distanceToDragon = Phaser.Math.Distance.BetweenPoints(this.player, dragon);
+            // const tolerance = 200 * 1.5 / this.game.loop.targetFps;
             if (this.player.body.speed > 0)
             {
-                if (distanceToDragon < toleranceToDragon)
+                const distance = Phaser.Math.Distance.BetweenPoints(this.player, this.player.object);
+                if (distance < tolerance)
                 {
-                    this.player.body.reset(dragon.x, dragon.y);
-                    dragon.anims.play('dragon')
-                    
-                    let restart = this.add.image(550, 400, 'recommencer').setInteractive();
-                    restart.on('pointerdown', (event) => {
-                        this.scene.restart();
-                    });
+                    this.player.body.reset(this.player.object.x, this.player.object.y);
+                    if (this.player.object.constructor.name == "Intersection") {
+                        this.player.setLines(this.player.object.lines)
+                    }
+                    else if (this.player.object.constructor.name == "Teleporteur") {
+                        let teleporteur = this.player.object
+                        if (!teleporteur.disabled) {
+                            this.player.body.reset(teleporteur.brother.x, teleporteur.brother.y);
+                            this.player.setObject(teleporteur.brother)
+                            this.player.setLines(teleporteur.brother.lines)
+                            if (teleporteur.isConsumable) {
+                                this.player.setObject(null)
+                                teleporteur.destroy(true)
+                                teleporteur.brother.destroy(true)
+                            }
+                        }
+                    }
+                    else if (this.player.object.constructor.name == "Arrivee") {
+                        this.player.setLines(this.player.object.lines)
+                        let bravo = this.add.image(550, 400, 'bravo').setInteractive();
+                        bravo.on('pointerdown', (event) => {
+                            this.scene.restart();
+                        });
+                    }
                 }
             }
-        })
+            
+            const toleranceToDragon = 20;
+            this.dragons.forEach( (dragon) => {
+                let distanceToDragon = Phaser.Math.Distance.BetweenPoints(this.player, dragon);
+                if (this.player.body.speed > 0)
+                {
+                    if (distanceToDragon < toleranceToDragon)
+                    {
+                        this.player.body.reset(dragon.x, dragon.y);
+                        dragon.anims.play('dragon')
+                        
+                        let restart = this.add.image(550, 400, 'recommencer').setInteractive();
+                        restart.on('pointerdown', (event) => {
+                            this.scene.restart();
+                        });
+                    }
+                }
+            })
+        }
     }
 }

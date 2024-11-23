@@ -75,33 +75,6 @@ export class MainMenu extends Phaser.Scene
             });
         });
         this.modeSandbox.on('pointerdown', () => {
-            this.scene.start('Sandbox');
-            this.scale.startFullscreen();
-        });
-
-        const mode_niveaux = [
-            "Niveaux"
-        ]
-        this.modeNiveaux = this.add.text(400, 550, mode_niveaux, textStyle).setAlign('center').setOrigin(0.5).setInteractive()
-        this.modeNiveaux.on('pointerover', () => {
-            this.tweens.add({
-                targets: this.modeNiveaux,
-                scaleX: 1.1,
-                scaleY: 1.1,
-                duration: 200,
-                ease: 'Linear'
-            });
-        });
-        this.modeNiveaux.on('pointerout', () => {
-            this.tweens.add({
-                targets: this.modeNiveaux,
-                scaleX: 1,
-                scaleY: 1,
-                duration: 200,
-                ease: 'Linear'
-            });
-        });
-        this.modeNiveaux.on('pointerdown', () => {
             this.scene.start('Niveaux');
             this.scale.startFullscreen();
         });

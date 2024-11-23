@@ -8,16 +8,6 @@ export class Niveaux extends Phaser.Scene
     }
 
     preload() {
-        this.load.json('levelData', 'niveau1.json');
-        // fetch("https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch/levels", {
-        //     method: "GET",
-        //     mode: "no-cors",
-        //     headers: {
-        //         "Content-type": "application/json; charset=UTF-8"
-        //     }
-        // })
-        // .then((response) => console.log(response))
-        // .then((json) => console.log(json));
     }
 
     async create()
@@ -60,7 +50,7 @@ export class Niveaux extends Phaser.Scene
             });
         });
         
-        const button_back = this.add.image(800 - 45, 225, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
+        const button_back = this.add.image(800 - 45, 135, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
         button_back.on('pointerdown', (event) => {
             this.scene.start('MainMenu');
         });
@@ -103,16 +93,52 @@ export class Niveaux extends Phaser.Scene
             }
         }
 
-        levelsData.forEach((levelData, key) => {
-
-            let json = JSON.parse(levelData.json);
-            console.log(json);
-            
-            let level = scene.add.text(0, key * 30, levelData.id, { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0).setInteractive();
+        let level_new = scene.add.text(0, 0, "Nouveau niveau", { fontFamily: 'Arial Black', fontSize: 20, color: '#ae9600' }).setAlign('left').setOrigin(0).setInteractive();
+        level_new.on('pointerover', () => {
+            this.tweens.add({
+                targets: level_new,
+                scaleX: 1.1,
+                scaleY: 1.1,
+                duration: 200,
+                ease: 'Linear'
+            });
+        });
+        level_new.on('pointerout', () => {
+            this.tweens.add({
+                targets: level_new,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 200,
+                ease: 'Linear'
+            });
+        });
+        level_new.on('pointerdown', () => {
+            this.scene.start('Sandbox');
+        })
+        levelsData.forEach((levelData, key) => {        
+            let position = (key * 30) + 30
+            let level_id_datetime_text = levelData.id + " - " + new Date(levelData.datetime).toLocaleDateString() + " " + new Date(levelData.datetime).toLocaleTimeString()
+            let level = scene.add.text(0, position, level_id_datetime_text, { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0).setInteractive();
+            level.on('pointerover', () => {
+                this.tweens.add({
+                    targets: level,
+                    scaleX: 1.1,
+                    scaleY: 1.1,
+                    duration: 200,
+                    ease: 'Linear'
+                });
+            });
+            level.on('pointerout', () => {
+                this.tweens.add({
+                    targets: level,
+                    scaleX: 1,
+                    scaleY: 1,
+                    duration: 200,
+                    ease: 'Linear'
+                });
+            });
             level.on('pointerdown', () => {
-                console.log(level);
                 this.scene.start('Niveau', { level_id: levelData.id });
-                
             })
             scene.levels.push(level);
         });

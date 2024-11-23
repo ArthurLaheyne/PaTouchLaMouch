@@ -49,31 +49,9 @@ export class Sandbox extends Phaser.Scene
                 ease: 'Linear'
             });
         });
-        const button_recommencer = this.add.image(800 - 45, 135, 'restart', 0).setOrigin(0.5, 0.5).setInteractive();
-        button_recommencer.on('pointerup', (event) => {
-            this.scene.restart();
-        });
-        button_recommencer.on('pointerover', () => {
-            this.tweens.add({
-                targets: button_recommencer,
-                scaleX: 1.1,
-                scaleY: 1.1,
-                duration: 200,
-                ease: 'Linear'
-            });
-        });
-        button_recommencer.on('pointerout', () => {
-            this.tweens.add({
-                targets: button_recommencer,
-                scaleX: 1,
-                scaleY: 1,
-                duration: 200,
-                ease: 'Linear'
-            });
-        });
-        const button_back = this.add.image(800 - 45, 225, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
+        const button_back = this.add.image(800 - 45, 135, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
         button_back.on('pointerup', (event) => {
-            this.scene.start('MainMenu');
+            this.scene.start('Niveaux');
         });
         button_back.on('pointerover', () => {
             this.tweens.add({
@@ -556,8 +534,6 @@ export class Sandbox extends Phaser.Scene
             }
             let jsonLines = []
             scene.lines.forEach((line, key) => {
-                console.log(line);
-                
                 if (line) {
                     let jsonLine = {
                         "name": key,
@@ -583,15 +559,30 @@ export class Sandbox extends Phaser.Scene
                     let lineB_index = jsonLines.findIndex((line) => {
                         return line.name == lineB_key;
                     })
-                    let jsonIntersection = {
+                    let jsonIntersectionNew = {
                         "name": lineA_key + '-' + lineB_key,
                         "position": {
-                            "x": lineAB_intersection.x,
-                            "y": lineAB_intersection.y
+                            "x": Math.round(lineAB_intersection.x * 1000) / 1000,
+                            "y": Math.round(lineAB_intersection.y * 1000) / 1000,
                         },
                         "lines": [lineA_index, lineB_index]
                     }
-                    jsonIntersections.push(jsonIntersection);
+                    // On vérifie que ce n'est pas une intersection déjà existante, si c'est le cas, on ajoute la ligne parmis les lignes de l'intersection
+                    let exists = false;
+                    jsonIntersections.forEach(jsonIntersection => {
+                        if (jsonIntersection.position.x == jsonIntersectionNew.position.x && jsonIntersectionNew.position.y == jsonIntersectionNew.position.y) {
+                            if (!jsonIntersection.lines.includes(lineA_index)) {
+                                jsonIntersection.lines.push(lineA_index)
+                            }
+                            if (!jsonIntersection.lines.includes(lineB_index)) {
+                                jsonIntersection.lines.push(lineB_index)
+                            }
+                            exists = true;
+                        }
+                    });
+                    if (!exists) {
+                        jsonIntersections.push(jsonIntersectionNew);
+                    }
                 });
             });
             json.intersections = jsonIntersections
