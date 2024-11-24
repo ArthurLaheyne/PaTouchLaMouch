@@ -172,8 +172,8 @@ export class Niveau extends Phaser.Scene
             this.intersections.push(intersection);
         });
 
-        this.player.setLines([scene.lines[0]])
-        this.player.setObject(scene.intersections[0]);
+        this.player.setLines(levelData.start.lines.map(line_key => this.lines[line_key]))
+        // this.player.setObject(scene.intersections[0]);
 
         levelData.dragons.forEach((dragonData, key) => {
             let dragon = new Dragon(`dragon${key}`, scene, dragonData.position.x, dragonData.position.y, 'dragon', scene.player);
@@ -184,8 +184,8 @@ export class Niveau extends Phaser.Scene
         });
 
         this.arrivee = new Arrivee("arrivee", scene, levelData.end.x, levelData.end.y, 'flag', this.player);
-        this.arrivee.addLine(scene.lines[0])
-        scene.lines[0].addObjects([this.arrivee])
+        this.arrivee.addLine(levelData.end.lines.map(line_key => this.lines[line_key])[0]) // On ajoute uniquement la premiere, l'objet arrivee n'est pas prévu pour supporter plusieurs lignes pour le moment
+        levelData.end.lines.map(line_key => this.lines[line_key])[0].addObjects([this.arrivee])
 
         this.target = new Phaser.Math.Vector2();
         const cursor = this.add.image(0, 0, 'cursor').setVisible(false);

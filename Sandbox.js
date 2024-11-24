@@ -262,7 +262,7 @@ export class Sandbox extends Phaser.Scene
                     if (scene.depart == null) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         scene.depart = new Depart("depart", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'depart');
-                        scene.depart.line_key = magnetPoint.line_key;
+                        scene.depart.lines_key.push(magnetPoint.line_key);
                         this.drawing_depart.destroy();
                         delete this.drawing_depart;
                     }
@@ -295,7 +295,7 @@ export class Sandbox extends Phaser.Scene
                     if (scene.arrivee == null) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         scene.arrivee = new Arriveee("arrivee", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'flag');
-                        scene.arrivee.line_key = magnetPoint.line_key;
+                        scene.arrivee.lines_key.push(magnetPoint.line_key);
                         this.drawing_arrivee.destroy();
                         delete this.drawing_arrivee;
                     }
@@ -332,7 +332,7 @@ export class Sandbox extends Phaser.Scene
                                     dragon.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
                                 }
                             });
-                            if (scene.depart && scene.depart.line_key == key) {
+                            if (scene.depart && scene.depart.lines_key.includes(key)) {
                                 let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
                                 let pointA = new Phaser.Geom.Point(line.geom.x1, line.geom.y1)
                                 let distance = Phaser.Math.Distance.BetweenPoints(pointA, scene.depart)
@@ -342,7 +342,7 @@ export class Sandbox extends Phaser.Scene
                                 scene.depart.setPosition(pointPourcentage.x, pointPourcentage.y);
                                 scene.depart.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
                             }
-                            if (scene.arrivee && scene.arrivee.line_key == key) {
+                            if (scene.arrivee && scene.arrivee.lines_key.includes(key)) {
                                 let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
                                 let pointA = new Phaser.Geom.Point(line.geom.x1, line.geom.y1)
                                 let distance = Phaser.Math.Distance.BetweenPoints(pointA, scene.arrivee)
@@ -380,7 +380,7 @@ export class Sandbox extends Phaser.Scene
                                     dragon.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
                                 }
                             });
-                            if (scene.depart && scene.depart.line_key == key) {
+                            if (scene.depart && scene.depart.lines_key.includes(key)) {
                                 let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
                                 let pointB = new Phaser.Geom.Point(line.geom.x2, line.geom.y2)
                                 let distance = Phaser.Math.Distance.BetweenPoints(pointB, scene.depart)
@@ -390,7 +390,7 @@ export class Sandbox extends Phaser.Scene
                                 scene.depart.setPosition(pointPourcentage.x, pointPourcentage.y);
                                 scene.depart.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
                             }
-                            if (scene.arrivee && scene.arrivee.line_key == key) {
+                            if (scene.arrivee && scene.arrivee.lines_key.includes(key)) {
                                 let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
                                 let pointB = new Phaser.Geom.Point(line.geom.x2, line.geom.y2)
                                 let distance = Phaser.Math.Distance.BetweenPoints(pointB, scene.arrivee)
@@ -440,7 +440,7 @@ export class Sandbox extends Phaser.Scene
                     depart.handle.on('drag', function (pointer, dragX, dragY) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         // Retirer le dragon des autres lignes
-                        depart.line_key = magnetPoint.line_key
+                        depart.lines_key.push(magnetPoint.line_key)
                         depart.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         depart.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
@@ -453,7 +453,7 @@ export class Sandbox extends Phaser.Scene
                     arrivee.handle.on('drag', function (pointer, dragX, dragY) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         // Retirer le dragon des autres lignes
-                        arrivee.line_key = magnetPoint.line_key
+                        arrivee.lines_key.push(magnetPoint.line_key)
                         arrivee.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         arrivee.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
@@ -588,31 +588,48 @@ export class Sandbox extends Phaser.Scene
             json.intersections = jsonIntersections
             let jsonDragons = []
             scene.dragons.forEach((dragon, dragon_key) => {
+                console.log(dragon);
+                
                 let jsonDragon = {
                     "name": dragon_key,
                     "position": {
                         "x": dragon.x,
                         "y": dragon.y
                     },
-                    "lines": [
-                        0
-                    ]
+                    "lines": []
                 }
+                jsonDragon.lines = dragon.lines.map(line_key => {
+                    return jsonLines.findIndex((line) => {
+                        return line.name == line_key;
+                    })
+                });
                 jsonDragons.push(jsonDragon);
             });
             json.dragons = jsonDragons
             if (scene.depart) {
                 json.start = {
                     x: scene.depart.x,
-                    y: scene.depart.y
+                    y: scene.depart.y,
                 }
+                json.start.lines = scene.depart.lines_key.map(line_key => {
+                    return jsonLines.findIndex((line) => {
+                        return line.name == line_key;
+                    })
+                });
             }
             if (scene.arrivee) {
                 json.end = {
                     x: scene.arrivee.x,
-                    y: scene.arrivee.y
+                    y: scene.arrivee.y,
                 }
+                json.end.lines = scene.arrivee.lines_key.map(line_key => {
+                    return jsonLines.findIndex((line) => {
+                        return line.name == line_key;
+                    })
+                });
             }
+            console.log(json);
+            
             fetch("https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch", {
                 method: "POST",
                 mode: "no-cors",
@@ -639,13 +656,13 @@ export class Sandbox extends Phaser.Scene
             scene.lines[key].destroy();
             delete scene.lines[key];
             scene.intersections = generateIntersections(scene.lines, scene.intersections);
-            if (scene.depart && scene.depart.line_key == key) {
+            if (scene.depart && scene.depart.lines_key.includes(key)) {
                 scene.depart.del.destroy()
                 delete scene.depart.del
                 scene.depart.destroy()
                 delete scene.depart
             }
-            if (scene.arrivee && scene.arrivee.line_key == key) {
+            if (scene.arrivee && scene.arrivee.lines_key.includes(key)) {
                 scene.arrivee.del.destroy()
                 delete scene.arrivee.del
                 scene.arrivee.destroy()
