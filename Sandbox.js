@@ -1,5 +1,6 @@
 import { Lineee, Handle, Intersectionn, Dragonn, Depart, Arriveee } from './Objects.js';
 import { Magnetize } from './Magnetize.js';
+import { PORTAL_COLORS, strokeRing, strokePortalLink } from './Gameplay.js';
 
 export class Sandbox extends Phaser.Scene
 {
@@ -92,6 +93,8 @@ export class Sandbox extends Phaser.Scene
         this.depart = null
         this.drawing_arrivee;
         this.arrivee = null
+        this.portals = [];
+        this.portalGraphics = this.add.graphics().setDepth(5);
 
 
         // MODES
@@ -104,6 +107,7 @@ export class Sandbox extends Phaser.Scene
         this.modeText = this.add.text(0, 120, "Depart (q)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         this.modeText = this.add.text(0, 150, "Arrivée (a)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         this.modeText = this.add.text(0, 180, "Exporter (x)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
+        this.modeText = this.add.text(0, 210, "Portail (p)", { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0)
         const textStyle = { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' };
         this.modeText = this.add.text(800, 600, "mode : " + this.mode, textStyle).setAlign('right').setOrigin(1)
 
@@ -172,7 +176,51 @@ export class Sandbox extends Phaser.Scene
                     delete scene.arrivee.del
                 }
             }
+            scene.portals.forEach(pair => [pair.a, pair.b].forEach(end => {
+                if (end.handle) { end.handle.destroy(); delete end.handle; }
+                if (end.del) { end.del.destroy(); delete end.del; }
+            }));
+            if (scene.drawing_portal) { scene.drawing_portal.destroy(); delete scene.drawing_portal; }
+            if (scene.pendingPortal) { scene.pendingPortal.destroy(); delete scene.pendingPortal; }
+            closePortalPanel();
+            renderPortals();
         }
+
+        // PORTAL EVENTS
+        this.input.keyboard.on('keydown-P', event =>
+        {
+            cleanKeyDown();
+
+            this.mode = "portail"
+            this.modeText.setText(this.mode)
+
+            if (this.lines.filter(Boolean).length === 0) return;
+            // Aperçu du portail suivant le curseur, accroché au fil ou à l'intersection la plus proche
+            scene.drawing_portal = scene.add.sprite(scene.input.mousePointer.x, scene.input.mousePointer.y, 'portal', 0).setAlpha(0.6).setDepth(2);
+            this.input.on('pointermove', pointer => {
+                const snap = portalSnap(pointer);
+                scene.drawing_portal.setPosition(snap.x, snap.y);
+            });
+            this.input.on('pointerup', (pointer, currentlyOver) => {
+                if (currentlyOver.some(o => o.isPortalUi)) return; // clic dans le panneau d'options
+                if (scene.portalPanel) { closePortalPanel(); return; } // clic ailleurs : ferme le panneau
+                const hit = findPortalEnd(pointer);
+                if (hit && !scene.pendingPortal) { openPortalPanel(hit.pair, hit.end); return; }
+                const snap = portalSnap(pointer);
+                if (!scene.pendingPortal) {
+                    scene.pendingPortal = newPortalEnd(snap.x, snap.y);
+                    placePortalEnd(scene.pendingPortal, snap);
+                    showMessage("Posez l'autre portail de la paire", "#000000");
+                } else if (Phaser.Math.Distance.BetweenPoints(snap, scene.pendingPortal) > 30) {
+                    const b = newPortalEnd(snap.x, snap.y);
+                    placePortalEnd(b, snap);
+                    scene.portals.push({ a: scene.pendingPortal, b, consumable: false, oneWay: false });
+                    delete scene.pendingPortal;
+                    renderPortals();
+                    showMessage("Paire posée : cliquez sur un portail pour ses options", "#000000");
+                }
+            });
+        });
 
         // LINE EVENTS
         this.input.keyboard.on('keydown-L', event =>
@@ -412,6 +460,15 @@ export class Sandbox extends Phaser.Scene
                     });
                 }
             }           
+            scene.portals.forEach(pair => [pair.a, pair.b].forEach(end => {
+                if (!end.handle) {
+                    end.handle = new Handle("portal", scene, end.x, end.y, 'drag', end);
+                    end.handle.on('drag', pointer => {
+                        placePortalEnd(end, portalSnap(pointer));
+                        renderPortals();
+                    });
+                }
+            }));
         });
 
         
@@ -473,6 +530,12 @@ export class Sandbox extends Phaser.Scene
                 })
             }
 
+            scene.portals.forEach(pair => [pair.a, pair.b].forEach(end => {
+                end.del = this.physics.add.sprite(end.x, end.y, 'delete');
+                end.del.depth = 20;
+                end.del.setInteractive();
+                end.del.on('pointerup', () => deletePortal(pair));
+            }));
         });
 
         
@@ -593,16 +656,21 @@ export class Sandbox extends Phaser.Scene
                 });
                 json.end.anchor = exportAnchor(scene.arrivee.anchor);
             }
-            if (scene.loadedPortals !== undefined) {
-                const remapEnd = (end) => {
-                    const lines = end.lines.map(line_key => jsonLines.findIndex((line) => line.name == line_key));
-                    return lines.includes(-1) ? null : { x: end.x, y: end.y, lines };
-                };
-                json.portals = scene.loadedPortals.map(pair => {
-                    const a = remapEnd(pair.a), b = remapEnd(pair.b);
-                    return a && b ? { a, b, consumable: !!pair.consumable, oneWay: !!pair.oneWay } : null;
-                }).filter(Boolean);
-            }
+            // Portails : toujours exportés (liste explicite, même vide). Un portail sur une intersection liste
+            // tous les fils qui y passent.
+            const portalEndJson = (end) => {
+                const own = end.lines_key[0];
+                const lines = [own];
+                scene.lines.forEach((line, key) => {
+                    if (line && key !== own) {
+                        const t = paramOnLine(line, end);
+                        const x = line.geom.x1 + (line.geom.x2 - line.geom.x1) * t, y = line.geom.y1 + (line.geom.y2 - line.geom.y1) * t;
+                        if (Phaser.Math.Distance.Between(x, y, end.x, end.y) < 0.5) lines.push(key);
+                    }
+                });
+                return { x: end.x, y: end.y, lines: lines.map(k => jsonLines.findIndex(line => line.name == k)), anchor: exportAnchor(end.anchor) };
+            };
+            json.portals = scene.portals.map(pair => ({ a: portalEndJson(pair.a), b: portalEndJson(pair.b), consumable: pair.consumable, oneWay: pair.oneWay }));
             console.log(json);
             
             saveLevel(json);
@@ -769,15 +837,14 @@ export class Sandbox extends Phaser.Scene
             scene.dragons.forEach(dragon => { if (dragon) relocate(dragon); });
             if (scene.depart) relocate(scene.depart);
             if (scene.arrivee) relocate(scene.arrivee);
+            scene.portals.forEach(pair => { relocate(pair.a); relocate(pair.b); });
+            renderPortals();
         }
 
         // Recrée dans l'éditeur un niveau enregistré (lignes, dragons, départ, arrivée et leurs ancrages)
         function loadLevel(level) {
             const json = level.json;
             scene.editLevelId = level.id;
-            // TEMPORAIRE, en attendant la gestion des portails dans l'éditeur : on les garde tels quels pour les
-            // réenregistrer (lignes renumérotées à l'export). Ils ne sont ni affichés ni déplacés avec les fils.
-            scene.loadedPortals = json.portals;
             json.lines.forEach((l, i) => {
                 const line = new Lineee("line" + i, scene, l.start.x, l.start.y, l.end.x, l.end.y);
                 line.status = "DRAWN";
@@ -825,12 +892,147 @@ export class Sandbox extends Phaser.Scene
                 scene.arrivee.lines_key.push(lineKey);
                 restoreAnchor(scene.arrivee, json.end.anchor, lineKey);
             }
+            if (Array.isArray(json.portals)) {
+                json.portals.forEach(pair => {
+                    const make = (end) => {
+                        const lineKey = lineKeyFor(end.lines, end);
+                        const sprite = newPortalEnd(end.x, end.y);
+                        sprite.lines_key = [lineKey];
+                        restoreAnchor(sprite, end.anchor, lineKey);
+                        return sprite;
+                    };
+                    scene.portals.push({ a: make(pair.a), b: make(pair.b), consumable: !!pair.consumable, oneWay: !!pair.oneWay });
+                });
+            } else {
+                // Ancien niveau sans liste de portails : le jeu met un portail à usage unique à chaque bout de chaque fil,
+                // menant à l'autre bout. On les convertit en paires explicites : même résultat une fois réenregistré.
+                scene.lines.forEach((line, lineKey) => {
+                    const make = (x, y) => {
+                        const sprite = newPortalEnd(x, y);
+                        sprite.lines_key = [lineKey];
+                        setAnchor(sprite, lineKey, { x, y });
+                        return sprite;
+                    };
+                    scene.portals.push({ a: make(line.geom.x1, line.geom.y1), b: make(line.geom.x2, line.geom.y2), consumable: true, oneWay: false });
+                });
+            }
             relocateAll();
             scene.add.text(400, 0, "Édition du niveau " + level.id.slice(0, 8), { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setOrigin(0.5, 0);
         }
 
+        // PORTAILS
+        //
+        // Une paire = { a, b, consumable, oneWay } ; a et b sont des sprites posés sur un fil, ancrés entre deux
+        // bornes comme les dragons. Posé près d'une intersection, un portail s'y accroche : en jeu, il la remplace.
+        // Sens unique : de a vers b. Couleur de la paire = son rang (même ordre que dans le jeu).
+
+        function newPortalEnd(x, y) {
+            const sprite = scene.add.sprite(x, y, 'portal', 0).setDepth(1);
+            sprite.lines_key = [];
+            return sprite;
+        }
+
+        // Point d'accroche : intersection proche (le portail la remplacera en jeu), sinon point le plus proche des fils
+        function portalSnap(pointer) {
+            let best = null;
+            scene.intersections.flat().forEach(intersection => {
+                if (intersection && intersection.active) {
+                    const d = Phaser.Math.Distance.BetweenPoints(pointer, intersection);
+                    if (d < 20 && (!best || d < best.d)) best = { d, intersection };
+                }
+            });
+            if (best) {
+                // Nom "intersection-i-j" : i est l'une des deux lignes
+                const lineKey = Number(best.intersection.name.split('-')[1]);
+                return { x: best.intersection.x, y: best.intersection.y, line_key: lineKey };
+            }
+            const magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
+            return { x: magnetPoint.nearest_point.x, y: magnetPoint.nearest_point.y, line_key: magnetPoint.line_key };
+        }
+
+        function placePortalEnd(end, snap) {
+            end.setPosition(snap.x, snap.y);
+            end.lines_key = [snap.line_key];
+            setAnchor(end, snap.line_key, snap);
+            if (end.handle) end.handle.setPosition(snap.x, snap.y);
+        }
+
+        function findPortalEnd(pointer) {
+            for (const pair of scene.portals) {
+                for (const end of [pair.a, pair.b]) {
+                    if (Phaser.Math.Distance.BetweenPoints(pointer, end) < 22) return { pair, end };
+                }
+            }
+            return null;
+        }
+
+        function renderPortals() {
+            const g = scene.portalGraphics;
+            g.clear();
+            scene.portals.forEach((pair, i) => {
+                const color = PORTAL_COLORS[i % PORTAL_COLORS.length];
+                strokeRing(g, pair.a.x, pair.a.y, color, pair.consumable);
+                strokeRing(g, pair.b.x, pair.b.y, color, pair.consumable);
+                strokePortalLink(g, pair.a, pair.b, color, pair.oneWay);
+                pair.b.setAlpha(pair.oneWay ? 0.55 : 1);
+            });
+        }
+
+        function deletePortal(pair) {
+            [pair.a, pair.b].forEach(end => {
+                if (end.handle) end.handle.destroy();
+                if (end.del) end.del.destroy();
+                end.destroy();
+            });
+            scene.portals = scene.portals.filter(p => p !== pair);
+            renderPortals();
+        }
+
+        // Panneau d'options d'une paire, ouvert en cliquant sur un de ses portails en mode portail
+        function openPortalPanel(pair, end) {
+            closePortalPanel();
+            const x = Phaser.Math.Clamp(end.x + 28, 0, 540);
+            const y = Phaser.Math.Clamp(end.y - 12, 0, 470);
+            const style = { fontFamily: 'Arial Black', fontSize: 16, color: '#000000', backgroundColor: '#ffffffdd', padding: { x: 6, y: 3 } };
+            const directionLabel = () => !pair.oneWay ? "Sens : dans les deux sens" : (pair.a === end ? "Sens : part d'ici" : "Sens : arrive ici");
+            const items = [
+                [() => "Usage unique : " + (pair.consumable ? "oui" : "non"), () => { pair.consumable = !pair.consumable; }],
+                [directionLabel, () => {
+                    // deux sens -> part d'ici -> arrive ici -> deux sens
+                    if (!pair.oneWay) {
+                        if (pair.b === end) [pair.a, pair.b] = [pair.b, pair.a];
+                        pair.oneWay = true;
+                    } else if (pair.a === end) {
+                        [pair.a, pair.b] = [pair.b, pair.a];
+                    } else {
+                        pair.oneWay = false;
+                    }
+                }],
+                [() => "Supprimer la paire", () => { deletePortal(pair); closePortalPanel(); }],
+                [() => "Fermer", () => closePortalPanel()],
+            ];
+            scene.portalPanel = items.map(([label, action], i) => {
+                const text = scene.add.text(x, y + i * 28, label(), style).setDepth(30).setInteractive();
+                text.isPortalUi = true;
+                text.on('pointerup', () => {
+                    action();
+                    renderPortals();
+                    if (scene.portalPanel) scene.portalPanel.forEach((t, j) => t.setText(items[j][0]()));
+                });
+                return text;
+            });
+        }
+
+        function closePortalPanel() {
+            if (scene.portalPanel) {
+                scene.portalPanel.forEach(text => text.destroy());
+                delete scene.portalPanel;
+            }
+        }
+
         function countWarnings() {
-            return [...scene.dragons, scene.depart, scene.arrivee].filter(o => o && o.anchorWarning).length;
+            const portalEnds = scene.portals.flatMap(pair => [pair.a, pair.b]);
+            return [...scene.dragons, scene.depart, scene.arrivee, ...portalEnds].filter(o => o && o.anchorWarning).length;
         }
 
         function deleteLine(key) {
@@ -845,6 +1047,7 @@ export class Sandbox extends Phaser.Scene
             delete scene.lines[key].del_end;
             scene.lines[key].destroy();
             delete scene.lines[key];
+            scene.portals.filter(pair => pair.a.lines_key.includes(key) || pair.b.lines_key.includes(key)).forEach(deletePortal);
             scene.intersections = generateIntersections(scene.lines, scene.intersections);
             relocateAll();
             if (scene.depart && scene.depart.lines_key.includes(key)) {

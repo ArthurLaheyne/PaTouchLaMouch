@@ -127,7 +127,7 @@ function endGame(scene, imageKey) {
 // Paire à sens unique : flèche vers la sortie, et sortie semi-transparente (elle ne mène nulle part).
 // Paire à usage unique : anneau en pointillés (le joueur doit savoir qu'elle disparaîtra après usage).
 
-const PORTAL_COLORS = [0x4fc3f7, 0xffb74d, 0xce93d8, 0x81c784, 0xf06292, 0xfff176, 0x90a4ae, 0xff8a65];
+export const PORTAL_COLORS = [0x4fc3f7, 0xffb74d, 0xce93d8, 0x81c784, 0xf06292, 0xfff176, 0x90a4ae, 0xff8a65];
 const PORTAL_RADIUS = 22; // la liaison s'arrête au bord des portails
 
 function decoratePortals(scene) {
@@ -163,7 +163,11 @@ function decoratePortals(scene) {
 }
 
 function drawRing(scene, x, y, color, dashed) {
-    const g = scene.add.graphics();
+    return strokeRing(scene.add.graphics(), x, y, color, dashed);
+}
+
+// Anneau autour d'un portail ; en pointillés pour une paire à usage unique (aussi utilisé par l'éditeur)
+export function strokeRing(g, x, y, color, dashed) {
     g.lineStyle(4, color, 1);
     const radius = 21, segments = dashed ? 10 : 1;
     for (let i = 0; i < segments; i++) {
@@ -177,11 +181,14 @@ function drawRing(scene, x, y, color, dashed) {
 }
 
 function drawPortalLink(scene, from, to, color, arrow) {
-    const g = scene.portalLink;
-    g.clear();
-    if (!from.active || !to.active) {
-        return;
+    scene.portalLink.clear();
+    if (from.active && to.active) {
+        strokePortalLink(scene.portalLink, from, to, color, arrow);
     }
+}
+
+// Liaison en pointillés entre deux portails, avec une flèche vers "to" si arrow (aussi utilisé par l'éditeur)
+export function strokePortalLink(g, from, to, color, arrow) {
     const length = Phaser.Math.Distance.BetweenPoints(from, to);
     if (length <= PORTAL_RADIUS * 2) {
         return;
