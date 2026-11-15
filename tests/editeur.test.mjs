@@ -118,6 +118,29 @@ describe('éditeur', () => {
         assert.ok(Math.abs(st.b[0] - 400) < 15, 'le portail a été déplacé le long du fil : ' + st.b);
     });
 
+    it('poignées qui se chevauchent : c\'est la plus proche du curseur qui répond', async () => {
+        // A, puis B dont le début est à 16 px de celui de A : les poignées et les croix de B sont dessus
+        const draw = async () => {
+            await game.startScene('Sandbox', {});
+            await game.key('KeyL');
+            await game.click(100, 300); await game.click(500, 300);
+            await game.click(110, 288); await game.click(110, 100);
+        };
+        const geoms = () => sandbox(s => s.lines.map(l => l && [l.geom.x1, l.geom.y1, l.geom.x2, l.geom.y2].map(Math.round)));
+        await draw();
+        const before = await geoms();
+        await game.key('KeyD');
+        await game.drag([[100, 300], [100, 360]]); // pile sur le début de A
+        const after = await geoms();
+        assert.deepEqual(after[0].slice(0, 2), [100, 360]); // A a bougé
+        assert.deepEqual(after[1], before[1]);              // B n'a pas bougé
+
+        await draw();
+        await game.key('KeyS');
+        await game.click(102, 296); // sous les croix de A et de B, plus près de celle de A
+        assert.deepEqual(await sandbox(s => Array.from(s.lines, l => !!l)), [false, true]);
+    });
+
     it('mode suppression : dragon, puis fil avec ce qui est posé dessus', async () => {
         await game.startScene('Sandbox', {});
         await game.key('KeyL');

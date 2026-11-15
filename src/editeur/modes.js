@@ -205,9 +205,8 @@ export function dragMode(scene) {
 export function deleteMode(scene) {
     enterMode(scene, "suppression");
     const cross = (x, y, depth, onDelete) => {
-        const del = scene.physics.add.sprite(x, y, 'delete');
+        const del = new Handle("delete", scene, x, y, 'delete', null, false);
         del.depth = depth;
-        del.setInteractive();
         del.on('pointerup', onDelete);
         return del;
     };

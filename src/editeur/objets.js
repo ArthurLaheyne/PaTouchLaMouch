@@ -25,14 +25,29 @@ class PhysicsSprite extends Phaser.GameObjects.Sprite {
     }
 }
 
-// Poignée de déplacement (mode d) ou de suppression (mode s) d'un objet
+// Poignée de déplacement (mode d, draggable) ou croix de suppression (mode s) d'un objet.
+// Zone de clic ronde ; quand plusieurs poignées sont sous le curseur (bouts de fil proches), seule la plus
+// proche répond, quelle que soit celle qui est dessinée au-dessus.
 export class Handle extends PhysicsSprite {
-    constructor(name, scene, x, y, texture, target) {
+    constructor(name, scene, x, y, texture, target, draggable = true) {
         super(scene, x, y, texture);
         this.name = name;
-        this.setInteractive({ draggable: true });
         this.target = target;
         this.depth = 10;
+        const radius = Math.min(this.width, this.height) / 2;
+        this.setInteractive({
+            draggable,
+            hitArea: new Phaser.Geom.Circle(this.width / 2, this.height / 2, radius),
+            hitAreaCallback: (area, localX, localY, handle) => {
+                if (!Phaser.Geom.Circle.Contains(area, localX, localY)) return false;
+                const px = handle.x - handle.displayOriginX + localX;
+                const py = handle.y - handle.displayOriginY + localY;
+                const distance = Math.hypot(px - handle.x, py - handle.y);
+                return !handle.scene.children.list.some(other => other !== handle && other instanceof Handle
+                    && other.active && other.input && other.input.enabled
+                    && Math.hypot(px - other.x, py - other.y) < distance);
+            },
+        });
     }
 }
 
