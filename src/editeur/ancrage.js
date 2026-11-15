@@ -63,7 +63,11 @@ function setWarning(object, warning) {
 
 function placeObject(object, x, y) {
     object.setPosition(x, y);
-    if (object.handle) object.handle.setPosition(x, y);
+    if (object.handle) {
+        // La poignée peut être décalée de l'objet (voir handleOffset dans modes.js)
+        const offset = object.handle.offset || { x: 0, y: 0 };
+        object.handle.setPosition(x + offset.x, y + offset.y);
+    }
 }
 
 // Replace un objet entre ses bornes, ou le signale si son segment n'existe plus tel quel

@@ -100,6 +100,24 @@ describe('éditeur', () => {
         assert.equal(state.gameOver, true);
     });
 
+    it('extrémité de fil et portail au même endroit : la poignée du fil est prioritaire, celle du portail est décalée', async () => {
+        await game.startScene('Sandbox', {});
+        await game.key('KeyL'); await game.click(100, 300); await game.click(500, 300);
+        await game.key('KeyP'); await game.click(100, 300); await game.click(500, 300); // un portail à chaque bout
+        await game.key('KeyD');
+        await game.drag([[500, 300], [500, 400]]); // extrémité du fil
+        const state = () => sandbox(s => ({ line: [s.lines[0].geom.x2, s.lines[0].geom.y2].map(Math.round),
+            b: [s.portals[0].b.x, s.portals[0].b.y].map(Math.round), handle: [s.portals[0].b.handle.x, s.portals[0].b.handle.y].map(Math.round) }));
+        let st = await state();
+        assert.deepEqual(st.line, [500, 400]);   // le fil a bougé
+        assert.deepEqual(st.b, [500, 400]);      // le portail a suivi son bout de fil
+        assert.notDeepEqual(st.handle, st.b);    // sa poignée est décalée
+        await game.drag([st.handle, [st.handle[0] - 100, st.handle[1] - 25]]); // poignée du portail
+        st = await state();
+        assert.deepEqual(st.line, [500, 400]);   // le fil n'a pas bougé
+        assert.ok(Math.abs(st.b[0] - 400) < 15, 'le portail a été déplacé le long du fil : ' + st.b);
+    });
+
     it('mode suppression : dragon, puis fil avec ce qui est posé dessus', async () => {
         await game.startScene('Sandbox', {});
         await game.key('KeyL');

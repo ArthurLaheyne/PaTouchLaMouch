@@ -14,6 +14,36 @@ function lineSnap(scene, pointer) {
 
 const hasLines = scene => scene.lines.some(Boolean);
 
+// Une extrémité de fil et un objet (souvent un portail) peuvent être au même endroit : la poignée ou la croix
+// de l'extrémité du fil est prioritaire (dessus), celle de l'objet est décalée vers l'intérieur de son fil.
+const LINE_END_DEPTH = 12;
+const OBJECT_HANDLE_SHIFT = 28;
+
+function handleOffset(scene, object) {
+    const onLineEnd = scene.lines.some(line => line && (
+        Phaser.Math.Distance.Between(line.geom.x1, line.geom.y1, object.x, object.y) < 20 ||
+        Phaser.Math.Distance.Between(line.geom.x2, line.geom.y2, object.x, object.y) < 20));
+    const line = scene.lines[object.lines_key[0]];
+    if (!onLineEnd || !line) return { x: 0, y: 0 };
+    // Vers le milieu de son fil
+    const mx = (line.geom.x1 + line.geom.x2) / 2 - object.x, my = (line.geom.y1 + line.geom.y2) / 2 - object.y;
+    const length = Math.hypot(mx, my);
+    return length < 1 ? { x: 0, y: -OBJECT_HANDLE_SHIFT } : { x: mx / length * OBJECT_HANDLE_SHIFT, y: my / length * OBJECT_HANDLE_SHIFT };
+}
+
+// Poignée de déplacement d'un objet ; snapTo(point) donne { x, y, line_key } pour le point visé
+function objectHandle(scene, object, name, snapTo, onMove = () => {}) {
+    const offset = handleOffset(scene, object);
+    const handle = new Handle(name, scene, object.x + offset.x, object.y + offset.y, 'drag', object);
+    handle.offset = offset;
+    object.handle = handle;
+    handle.on('drag', pointer => {
+        const snap = snapTo({ x: pointer.x - offset.x, y: pointer.y - offset.y });
+        placeOnLine(scene, object, snap.line_key, snap);
+        onMove();
+    });
+}
+
 // Quitte le mode courant : écouteurs, aperçus, poignées et panneau retirés
 function leaveMode(scene) {
     scene.input.off('pointerup');
@@ -150,6 +180,7 @@ export function dragMode(scene) {
         if (!line) return;
         for (const end of ['start', 'end']) {
             const handle = new Handle(`${line.name}-${end}`, scene, end === 'start' ? line.geom.x1 : line.geom.x2, end === 'start' ? line.geom.y1 : line.geom.y2, 'drag', line);
+            handle.setDepth(LINE_END_DEPTH);
             line['handle_' + end] = handle;
             handle.on('drag', pointer => {
                 const magnetPoint = scene.magnetize.magnetize(scene, line, scene.intersections.flat(), pointer, 40, end, false);
@@ -162,46 +193,39 @@ export function dragMode(scene) {
             });
         }
     });
-    const objects = [...scene.dragons, scene.depart, scene.arrivee].filter(Boolean);
-    objects.forEach(object => {
-        object.handle = new Handle(object.name, scene, object.x, object.y, 'drag', object);
-        object.handle.on('drag', pointer => {
-            const snap = lineSnap(scene, pointer);
-            placeOnLine(scene, object, snap.line_key, snap);
-        });
+    [...scene.dragons, scene.depart, scene.arrivee].filter(Boolean).forEach(object => {
+        objectHandle(scene, object, object.name, point => lineSnap(scene, point));
     });
     scene.portals.forEach(pair => [pair.a, pair.b].forEach(end => {
-        end.handle = new Handle("portal", scene, end.x, end.y, 'drag', end);
-        end.handle.on('drag', pointer => {
-            placePortalEnd(scene, end, portalSnap(scene, pointer));
-            renderPortals(scene);
-        });
+        objectHandle(scene, end, "portal", point => portalSnap(scene, point), () => renderPortals(scene));
     }));
 }
 
 // Suppression : croix aux extrémités des fils et sur chaque objet
 export function deleteMode(scene) {
     enterMode(scene, "suppression");
-    const cross = (object, x, y, onDelete) => {
+    const cross = (x, y, depth, onDelete) => {
         const del = scene.physics.add.sprite(x, y, 'delete');
-        del.depth = 20;
+        del.depth = depth;
         del.setInteractive();
         del.on('pointerup', onDelete);
         return del;
     };
+    // Croix d'un objet, décalée comme sa poignée s'il est sur une extrémité de fil
+    const objectCross = (object, onDelete) => {
+        const offset = handleOffset(scene, object);
+        object.del = cross(object.x + offset.x, object.y + offset.y, 20, onDelete);
+    };
     scene.lines.forEach((line, key) => {
         if (!line) return;
-        line.del_start = cross(line, line.geom.x1, line.geom.y1, () => deleteLine(scene, key));
-        line.del_end = cross(line, line.geom.x2, line.geom.y2, () => deleteLine(scene, key));
+        line.del_start = cross(line.geom.x1, line.geom.y1, 20 + LINE_END_DEPTH, () => deleteLine(scene, key));
+        line.del_end = cross(line.geom.x2, line.geom.y2, 20 + LINE_END_DEPTH, () => deleteLine(scene, key));
     });
-    scene.dragons.forEach(dragon => {
-        dragon.del = cross(dragon, dragon.x, dragon.y, () => deleteObject(scene, dragon));
+    [...scene.dragons, scene.depart, scene.arrivee].filter(Boolean).forEach(object => {
+        objectCross(object, () => deleteObject(scene, object));
     });
-    for (const object of [scene.depart, scene.arrivee].filter(Boolean)) {
-        object.del = cross(object, object.x, object.y, () => deleteObject(scene, object));
-    }
     scene.portals.forEach(pair => [pair.a, pair.b].forEach(end => {
-        end.del = cross(end, end.x, end.y, () => deletePortal(scene, pair));
+        objectCross(end, () => deletePortal(scene, pair));
     }));
 }
 
