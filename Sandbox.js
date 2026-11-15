@@ -194,6 +194,7 @@ export class Sandbox extends Phaser.Scene
     
                         // Generate intersections
                         this.intersections = generateIntersections(this.lines, this.intersections);
+                        relocateAll();
                     }
                 }
             })
@@ -231,6 +232,7 @@ export class Sandbox extends Phaser.Scene
                     let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                     let dragon = new Dragonn("dragon1", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'dragon');
                     dragon.lines.push(magnetPoint.line);
+                    setAnchor(dragon, magnetPoint.line_key, magnetPoint.nearest_point);
                     magnetPoint.line.dragon_keys.push(scene.dragons.length);
                     scene.dragons.push(dragon);
                 }, this);                    
@@ -263,6 +265,7 @@ export class Sandbox extends Phaser.Scene
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         scene.depart = new Depart("depart", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'depart');
                         scene.depart.lines_key.push(magnetPoint.line_key);
+                        setAnchor(scene.depart, magnetPoint.line_key, magnetPoint.nearest_point);
                         this.drawing_depart.destroy();
                         delete this.drawing_depart;
                     }
@@ -296,6 +299,7 @@ export class Sandbox extends Phaser.Scene
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         scene.arrivee = new Arriveee("arrivee", scene, magnetPoint.nearest_point.x, magnetPoint.nearest_point.y, 'flag');
                         scene.arrivee.lines_key.push(magnetPoint.line_key);
+                        setAnchor(scene.arrivee, magnetPoint.line_key, magnetPoint.nearest_point);
                         this.drawing_arrivee.destroy();
                         delete this.drawing_arrivee;
                     }
@@ -318,40 +322,8 @@ export class Sandbox extends Phaser.Scene
                         line.start = new Handle(line.name + "-start", scene, line.geom.x1, line.geom.y1, 'drag', line)
                         line.start.on('drag', function (pointer, dragX, dragY) {
                             let magnetPoint = magnetize.magnetize(scene, line, scene.intersections.flat(), pointer, 40, "start", false);
-                            // Le pourcentage devra être défini à l'ajout du dragon, ici ça ne fonctionne pas
-                            line.dragon_keys.forEach(dragon_key => {
-                                if (scene.dragons[dragon_key] != undefined) {
-                                    let dragon = scene.dragons[dragon_key];
-                                    let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
-                                    let pointA = new Phaser.Geom.Point(line.geom.x1, line.geom.y1)
-                                    let distanceDragon = Phaser.Math.Distance.BetweenPoints(pointA, dragon)
-                                    let lineLength = Phaser.Geom.Line.Length(geomLine);
-                                    let pourcentage = distanceDragon / lineLength;
-                                    let pointPourcentage = geomLine.getPoint(pourcentage);                            
-                                    dragon.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                    dragon.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                }
-                            });
-                            if (scene.depart && scene.depart.lines_key.includes(key)) {
-                                let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
-                                let pointA = new Phaser.Geom.Point(line.geom.x1, line.geom.y1)
-                                let distance = Phaser.Math.Distance.BetweenPoints(pointA, scene.depart)
-                                let lineLength = Phaser.Geom.Line.Length(geomLine);
-                                let pourcentage = distance / lineLength;
-                                let pointPourcentage = geomLine.getPoint(pourcentage);                            
-                                scene.depart.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                scene.depart.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
-                            }
-                            if (scene.arrivee && scene.arrivee.lines_key.includes(key)) {
-                                let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
-                                let pointA = new Phaser.Geom.Point(line.geom.x1, line.geom.y1)
-                                let distance = Phaser.Math.Distance.BetweenPoints(pointA, scene.arrivee)
-                                let lineLength = Phaser.Geom.Line.Length(geomLine);
-                                let pourcentage = distance / lineLength;
-                                let pointPourcentage = geomLine.getPoint(pourcentage);                            
-                                scene.arrivee.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                scene.arrivee.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
-                            }
+                            // Dragons, départ et arrivée restent entre leurs bornes (sur toutes les lignes)
+                            relocateAll();
                             this.x = magnetPoint.x
                             this.y = magnetPoint.y
                         });
@@ -360,46 +332,15 @@ export class Sandbox extends Phaser.Scene
                             Phaser.Geom.Line.Extend(line, 1, 0)
                             // Generate intersections
                             scene.intersections = generateIntersections(scene.lines, scene.intersections);
+                            relocateAll();
                         });
                     }
                     if (!line.end) {
                         line.end = new Handle(line.name + "-end", scene, line.geom.x2, line.geom.y2, 'drag', line)
                         line.end.on('drag', function (pointer, dragX, dragY) {
                             let magnetPoint = magnetize.magnetize(scene, line, scene.intersections.flat(), pointer, 40, "end", false);
-                            // Le pourcentage devra être défini à l'ajout du dragon, ici ça ne fonctionne pas
-                            line.dragon_keys.forEach(dragon_key => {
-                                if (scene.dragons[dragon_key] != undefined) {
-                                    let dragon = scene.dragons[dragon_key]
-                                    let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
-                                    let pointB = new Phaser.Geom.Point(line.geom.x2, line.geom.y2)
-                                    let distanceDragon = Phaser.Math.Distance.BetweenPoints(pointB, dragon)
-                                    let lineLength = Phaser.Geom.Line.Length(geomLine);
-                                    let pourcentage = (lineLength - distanceDragon) / lineLength;
-                                    let pointPourcentage = geomLine.getPoint(pourcentage);
-                                    dragon.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                    dragon.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                }
-                            });
-                            if (scene.depart && scene.depart.lines_key.includes(key)) {
-                                let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
-                                let pointB = new Phaser.Geom.Point(line.geom.x2, line.geom.y2)
-                                let distance = Phaser.Math.Distance.BetweenPoints(pointB, scene.depart)
-                                let lineLength = Phaser.Geom.Line.Length(geomLine);
-                                let pourcentage = (lineLength - distance) / lineLength;
-                                let pointPourcentage = geomLine.getPoint(pourcentage);                            
-                                scene.depart.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                scene.depart.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
-                            }
-                            if (scene.arrivee && scene.arrivee.lines_key.includes(key)) {
-                                let geomLine = new Phaser.Geom.Line(line.geom.x1, line.geom.y1, line.geom.x2, line.geom.y2);
-                                let pointB = new Phaser.Geom.Point(line.geom.x2, line.geom.y2)
-                                let distance = Phaser.Math.Distance.BetweenPoints(pointB, scene.arrivee)
-                                let lineLength = Phaser.Geom.Line.Length(geomLine);
-                                let pourcentage = (lineLength - distance) / lineLength;
-                                let pointPourcentage = geomLine.getPoint(pourcentage);                            
-                                scene.arrivee.setPosition(pointPourcentage.x, pointPourcentage.y);
-                                scene.arrivee.handle.setPosition(pointPourcentage.x, pointPourcentage.y);
-                            }
+                            // Dragons, départ et arrivée restent entre leurs bornes (sur toutes les lignes)
+                            relocateAll();
                             this.x = magnetPoint.x
                             this.y = magnetPoint.y
                         });
@@ -408,6 +349,7 @@ export class Sandbox extends Phaser.Scene
                             Phaser.Geom.Line.Extend(line, 0, 1)
                             // Generate intersections
                             scene.intersections = generateIntersections(scene.lines, scene.intersections);
+                            relocateAll();
                         
                         });
                     }
@@ -421,13 +363,14 @@ export class Sandbox extends Phaser.Scene
                             let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                             // Retirer le dragon des autres lignes
                             scene.lines.forEach(line => {
-                                if (line.dragon_keys.includes(key)) {
+                                if (line && line.dragon_keys.includes(key)) {
                                     const index = line.dragon_keys.indexOf(key);
                                     line.dragon_keys.splice(index, 1);
                                 }
                             })
                             magnetPoint.line.dragon_keys.push(key);
                             dragon.lines = [magnetPoint.line];
+                            setAnchor(dragon, magnetPoint.line_key, magnetPoint.nearest_point);
                             dragon.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                             dragon.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         });
@@ -442,6 +385,7 @@ export class Sandbox extends Phaser.Scene
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         // Retirer le dragon des autres lignes
                         depart.lines_key = [magnetPoint.line_key]
+                        setAnchor(depart, magnetPoint.line_key, magnetPoint.nearest_point);
                         depart.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         depart.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
@@ -455,6 +399,7 @@ export class Sandbox extends Phaser.Scene
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         // Retirer le dragon des autres lignes
                         arrivee.lines_key = [magnetPoint.line_key]
+                        setAnchor(arrivee, magnetPoint.line_key, magnetPoint.nearest_point);
                         arrivee.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         arrivee.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
@@ -642,6 +587,8 @@ export class Sandbox extends Phaser.Scene
         let saving = false;
         async function saveLevel(json) {
             if (saving) return;
+            const warnings = countWarnings();
+            if (warnings > 0 && !window.confirm(warnings + " élément(s) en rouge : leur segment a changé (intersection disparue ou ajoutée). Enregistrer quand même ?")) return;
             const password = window.prompt("Mot de passe pour enregistrer le niveau :");
             if (password === null) return;
             saving = true;
@@ -690,6 +637,111 @@ export class Sandbox extends Phaser.Scene
         }
 
 
+        // ANCRAGE DES DRAGONS, DU DÉPART ET DE L'ARRIVÉE
+        //
+        // Un dragon bloque un segment de fil compris entre deux "bornes" : deux intersections consécutives,
+        // ou une intersection et une extrémité du fil (où se trouve un portail en jeu). Le départ et l'arrivée
+        // sont eux aussi dans un segment, d'un côté ou de l'autre des dragons.
+        // On retient donc pour chaque objet : sa ligne, ses deux bornes et sa position u (0..1) entre elles.
+        // Une borne est identifiée par 'start', 'end' ou la clé de l'autre ligne (deux lignes droites ne se
+        // croisent qu'une fois). Quand un fil bouge, l'objet est replacé entre ses bornes.
+        // Si une borne disparaît, si une intersection apparaît entre les bornes (le segment est coupé)
+        // ou si le segment devient nul, l'objet reste où il est et passe en rouge : c'est à l'auteur de décider.
+
+        const EPSILON_T = 1e-6;
+        const WARNING_TINT = 0xff3333;
+
+        // Position relative d'un point sur une ligne : 0 = début, 1 = fin
+        function paramOnLine(line, point) {
+            const dx = line.geom.x2 - line.geom.x1;
+            const dy = line.geom.y2 - line.geom.y1;
+            const lengthSq = dx * dx + dy * dy;
+            if (lengthSq === 0) return 0;
+            const t = ((point.x - line.geom.x1) * dx + (point.y - line.geom.y1) * dy) / lengthSq;
+            return Phaser.Math.Clamp(t, 0, 1);
+        }
+
+        // Bornes d'une ligne (extrémités et intersections), triées le long de la ligne
+        function nodesOnLine(lineKey) {
+            const line = scene.lines[lineKey];
+            const nodes = [{ id: 'start', t: 0 }, { id: 'end', t: 1 }];
+            scene.lines.forEach((other, otherKey) => {
+                if (other && otherKey !== lineKey) {
+                    const point = Phaser.Geom.Intersects.GetLineToLine(line.geom, other.geom);
+                    if (point) nodes.push({ id: otherKey, t: paramOnLine(line, point) });
+                }
+            });
+            return nodes.sort((n1, n2) => n1.t - n2.t);
+        }
+
+        // Calcule l'ancrage d'un objet qu'on vient de poser ou de déplacer à la main
+        function setAnchor(object, lineKey, point) {
+            const t = paramOnLine(scene.lines[lineKey], point);
+            const nodes = nodesOnLine(lineKey);
+            let i = 0;
+            // Premier segment de longueur non nulle qui contient t
+            while (i < nodes.length - 2 && (nodes[i + 1].t < t || nodes[i + 1].t - nodes[i].t < EPSILON_T)) i++;
+            const prev = nodes[i], next = nodes[i + 1];
+            const length = next.t - prev.t;
+            object.anchor = {
+                line: lineKey,
+                prev: prev.id,
+                next: next.id,
+                u: length > EPSILON_T ? Phaser.Math.Clamp((t - prev.t) / length, 0, 1) : 0,
+            };
+            setWarning(object, false);
+        }
+
+        function setWarning(object, warning) {
+            object.anchorWarning = warning;
+            if (warning) object.setTint(WARNING_TINT); else object.clearTint();
+        }
+
+        function placeObject(object, x, y) {
+            object.setPosition(x, y);
+            if (object.handle) object.handle.setPosition(x, y);
+        }
+
+        // Replace un objet entre ses bornes, ou le signale si son segment n'existe plus tel quel
+        function relocate(object) {
+            const anchor = object.anchor;
+            if (!anchor) return;
+            const line = scene.lines[anchor.line];
+            if (!line) return; // Ligne supprimée : l'objet est supprimé avec elle
+            const nodes = nodesOnLine(anchor.line);
+            const prev = nodes.find(n => n.id === anchor.prev);
+            const next = nodes.find(n => n.id === anchor.next);
+            const pointAt = t => ({
+                x: line.geom.x1 + (line.geom.x2 - line.geom.x1) * t,
+                y: line.geom.y1 + (line.geom.y2 - line.geom.y1) * t,
+            });
+
+            if (!prev || !next) {
+                // Une borne a disparu : on garde la position actuelle, ramenée sur la ligne
+                const p = pointAt(paramOnLine(line, object));
+                placeObject(object, p.x, p.y);
+                setWarning(object, true);
+                return;
+            }
+            const p = pointAt(prev.t + anchor.u * (next.t - prev.t));
+            placeObject(object, p.x, p.y);
+            // Les bornes doivent rester voisines (aucune intersection entre elles) et distinctes
+            const low = Math.min(prev.t, next.t), high = Math.max(prev.t, next.t);
+            const between = nodes.filter(n => n !== prev && n !== next && n.t > low + EPSILON_T && n.t < high - EPSILON_T);
+            setWarning(object, between.length > 0 || high - low < EPSILON_T);
+        }
+
+        // À appeler après toute modification du réseau : un fil déplacé déplace aussi les bornes des autres fils
+        function relocateAll() {
+            scene.dragons.forEach(dragon => { if (dragon) relocate(dragon); });
+            if (scene.depart) relocate(scene.depart);
+            if (scene.arrivee) relocate(scene.arrivee);
+        }
+
+        function countWarnings() {
+            return [...scene.dragons, scene.depart, scene.arrivee].filter(o => o && o.anchorWarning).length;
+        }
+
         function deleteLine(key) {
             scene.lines[key].dragon_keys.forEach(dragon_key => {
                 // if (dragon != undefined) {
@@ -703,6 +755,7 @@ export class Sandbox extends Phaser.Scene
             scene.lines[key].destroy();
             delete scene.lines[key];
             scene.intersections = generateIntersections(scene.lines, scene.intersections);
+            relocateAll();
             if (scene.depart && scene.depart.lines_key.includes(key)) {
                 scene.depart.del.destroy()
                 delete scene.depart.del
