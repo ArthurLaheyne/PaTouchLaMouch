@@ -55,6 +55,10 @@ export class Lineee extends Phaser.GameObjects.Line {
         this.dragon_keys = []
         this.status = "DRAWING"
         this.setLineWidth(4);
+        // Origine en haut à gauche : les coordonnées de la ligne sont celles de la scène.
+        // Avec l'origine par défaut (0.5), une ligne créée d'emblée avec sa taille (niveau rouvert dans
+        // l'éditeur) est dessinée décalée de la moitié de sa boîte englobante.
+        this.setOrigin(0, 0);
         
         // this.setInteractive(rect, Phaser.Geom.Rectangle.Contains);
         // this.setActive(true);
