@@ -18,7 +18,6 @@ describe('éditeur', () => {
     });
 
     const sandbox = (fn, arg) => game.page.evaluate(([fn, arg]) => new Function('s', 'arg', 'return (' + fn + ')(s, arg)')(game.scene.getScene('Sandbox'), arg), [fn.toString(), arg]);
-    const objectState = o => `(${r1(o.x)},${r1(o.y)})${o.anchorWarning ? ' rouge' : ''}`;
 
     it('un dragon garde sa position relative sur un fil qu\'on fait pivoter', async () => {
         await game.startScene('Sandbox');
@@ -34,7 +33,7 @@ describe('éditeur', () => {
         assert.deepEqual(dragon.map(r1), [150, 300]);
     });
 
-    it('dragons, départ et arrivée restent entre leurs bornes, et passent en rouge si le segment change', async () => {
+    it('dragons, départ et arrivée restent entre leurs bornes, sans jamais passer en rouge', async () => {
         await game.startScene('Sandbox');
         await game.key('KeyL');
         await game.click(100, 300); await game.click(500, 300); // H
@@ -43,18 +42,18 @@ describe('éditeur', () => {
         await game.key('KeyG'); await game.click(300, 300);
         await game.key('KeyQ'); await game.click(150, 300);
         await game.key('KeyA'); await game.click(450, 300);
-        const state = () => sandbox((s, f) => [s.dragons[0], s.depart, s.arrivee].map(o => `(${Math.round(o.x * 10) / 10},${Math.round(o.y * 10) / 10})${o.anchorWarning ? ' rouge' : ''}`));
+        const state = () => sandbox(s => [s.dragons[0], s.depart, s.arrivee].map(o => `(${Math.round(o.x * 10) / 10},${Math.round(o.y * 10) / 10})${o.isTinted ? ' teinté' : ''}`));
         await game.key('KeyD');
         await game.drag([[400, 100], [450, 100]]); // V2 penche : son croisement avec H passe en x = 425
         assert.deepEqual(await state(), ['(312.5,300)', '(150,300)', '(462.5,300)']);
-        await game.key('KeyL'); await game.click(300, 80); await game.click(300, 520); // V3 coupe le segment du dragon
-        assert.match((await state())[0], /rouge/);
+        await game.key('KeyL'); await game.click(300, 80); await game.click(300, 520); // V3 coupe le passage du dragon
+        assert.deepEqual(await state(), ['(312.5,300)', '(150,300)', '(462.5,300)']); // rien ne bouge
         await game.key('KeyD');
-        await game.drag([[200, 500], [200, 150]]); // V1 ne croise plus H
-        assert.match((await state())[1], /rouge/);
-        const pos = await sandbox(s => [s.dragons[0].x, s.dragons[0].y]);
-        await game.drag([pos, [360, 300]]); // redéplacé à la main : plus rouge
-        assert.doesNotMatch((await state())[0], /rouge/);
+        await game.drag([[200, 500], [200, 150]]); // V1 ne croise plus H : le dragon et le départ perdent une borne
+        assert.deepEqual(await state(), ['(312.5,300)', '(150,300)', '(462.5,300)']); // ils restent en place
+        await game.drag([[300, 80], [340, 80]]); // V3 penche : croise H en x = 320
+        // Raccrochés à leurs nouvelles bornes : départ entre le bout de H et V3, dragon entre V3 et V2
+        assert.deepEqual(await state(), ['(330.5,300)', '(155,300)', '(462.5,300)']);
     });
 
     it('portails : pose, options, suivi d\'une intersection, enregistrement, réouverture et jeu', async () => {
@@ -179,7 +178,7 @@ describe('éditeur', () => {
                 return Phaser.Geom.Line.GetShortestDistance(new Phaser.Geom.Line(l.geom.x1, l.geom.y1, l.geom.x2, l.geom.y2), o) < 0.5;
             };
             return { id: s.editLevelId, lines: s.lines.length, dragons: objects.length - 2, onLine: objects.every(onLine),
-                red: objects.filter(o => o.anchorWarning).length, lineOrigins: s.lines.every(l => l.originX === 0 && l.originY === 0) };
+                red: objects.filter(o => o.isTinted).length, lineOrigins: s.lines.every(l => l.originX === 0 && l.originY === 0) };
         });
         assert.deepEqual(info, { id, lines: 9, dragons: 8, onLine: true, red: 0, lineOrigins: true });
 

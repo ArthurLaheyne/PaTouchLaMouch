@@ -1,6 +1,6 @@
 // Ouverture, export et enregistrement des niveaux dans l'éditeur (format : voir format-niveau.js)
 import { EditorLine, EditorObject } from './objets.js';
-import { setAnchor, countWarnings } from './ancrage.js';
+import { setAnchor } from './ancrage.js';
 import { newPortalEnd } from './portails.js';
 import { generateIntersections, updateNetwork } from './reseau.js';
 import { portalsOf, distanceToLine } from '../format-niveau.js';
@@ -115,8 +115,6 @@ export function exportLevel(scene) {
 // Sans serveur PHP (ex. en local avec http-server), propose de télécharger le niveau à la place.
 export async function saveLevel(scene, json) {
     if (scene.saving) return;
-    const warnings = countWarnings(scene);
-    if (warnings > 0 && !window.confirm(warnings + " élément(s) en rouge : leur segment a changé (intersection disparue ou ajoutée). Enregistrer quand même ?")) return;
     let action = "create";
     if (scene.editLevelId) {
         action = window.confirm("Remplacer le niveau d'origine ?\n\nOK : remplacer\nAnnuler : enregistrer comme nouveau niveau") ? "replace" : "create";
