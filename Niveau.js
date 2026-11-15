@@ -1,4 +1,5 @@
 import { Line, Player, Teleporteur, Dragon, Intersection, Arrivee } from './Objects.js';
+import { startGameplay } from './Gameplay.js';
 import { loadLevels, isPlayable } from './levels.js';
 
 export class Niveau extends Phaser.Scene
@@ -131,8 +132,6 @@ export class Niveau extends Phaser.Scene
     
         scene.graphics = this.add.graphics({ lineStyle: { width: 4, color: 0xaa00aa } })
         scene.objects = []
-        // Partie terminée (victoire ou mort) : plus aucun déplacement possible
-        this.gameOver = false
         scene.player;
         scene.lines = [];
         scene.intersections = [];
@@ -183,98 +182,11 @@ export class Niveau extends Phaser.Scene
         this.arrivee.addLine(levelData.end.lines.map(line_key => this.lines[line_key])[0]) // On ajoute uniquement la premiere, l'objet arrivee n'est pas prévu pour supporter plusieurs lignes pour le moment
         levelData.end.lines.map(line_key => this.lines[line_key])[0].addObjects([this.arrivee])
 
-        this.target = new Phaser.Math.Vector2();
-        const cursor = this.add.image(0, 0, 'cursor').setVisible(false);
-
-        // On ne peut cliquer que sur un seul élément
-        this.input.setTopOnly(false);
-
-        this.objects.forEach(object => {
-            object.on('pointerdown', (pointer, gameObjects) => {
-                if (!this.gameOver && object.isReachable()) {
-                    // Move at 200 px/s:
-                    this.player.setObject(object)
-                    if (this.player.object.constructor.name != "Intersection") {
-                        this.player.setLines(this.player.object.lines)
-                    } else if (this.player.object.constructor.name == "Intersection") {
-                        // Trouver la ligne qui joint l'objet de départ et l'intersection d'arrivée
-                    }
-                    this.physics.moveToObject(this.player, object, 200);
-                }
-            })
-        });
-
-
+        // Déplacement, arrivée et dragons : voir Gameplay.js
+        startGameplay(this);
     }
 
     update()
     {
-        const scene = this;
-        if (scene.player && scene.player.body) {
-            this.objects.forEach(object => {
-                if (object.isReachable()) {
-                    // Add tween animation !!!
-                } else {
-                    object.scale = 1
-                }
-            });
-            //  4 is our distance tolerance, i.e. how close the player can get to the target
-            //  before it is considered as being there. The faster it moves, the more tolerance is required.
-            const tolerance = 4;
-
-            // const tolerance = 200 * 1.5 / this.game.loop.targetFps;
-            if (this.player.body.speed > 0)
-            {
-                const distance = Phaser.Math.Distance.BetweenPoints(this.player, this.player.object);
-                if (distance < tolerance)
-                {
-                    this.player.body.reset(this.player.object.x, this.player.object.y);
-                    if (this.player.object.constructor.name == "Intersection") {
-                        this.player.setLines(this.player.object.lines)
-                    }
-                    else if (this.player.object.constructor.name == "Teleporteur") {
-                        let teleporteur = this.player.object
-                        if (!teleporteur.disabled) {
-                            this.player.body.reset(teleporteur.brother.x, teleporteur.brother.y);
-                            this.player.setObject(teleporteur.brother)
-                            this.player.setLines(teleporteur.brother.lines)
-                            if (teleporteur.isConsumable) {
-                                this.player.setObject(null)
-                                teleporteur.destroy(true)
-                                teleporteur.brother.destroy(true)
-                            }
-                        }
-                    }
-                    else if (this.player.object.constructor.name == "Arrivee") {
-                        this.player.setLines(this.player.object.lines)
-                        this.gameOver = true;
-                        let bravo = this.add.image(550, 400, 'bravo').setInteractive();
-                        bravo.on('pointerdown', (event) => {
-                            this.scene.restart();
-                        });
-                    }
-                }
-            }
-            
-            const toleranceToDragon = 20;
-            this.dragons.forEach( (dragon) => {
-                let distanceToDragon = Phaser.Math.Distance.BetweenPoints(this.player, dragon);
-                if (this.player.body.speed > 0)
-                {
-                    if (!this.gameOver && distanceToDragon < toleranceToDragon)
-                    {
-                        this.player.body.reset(dragon.x, dragon.y);
-                        dragon.anims.play('dragon')
-                        
-                        this.gameOver = true;
-                        
-                        let restart = this.add.image(550, 400, 'recommencer').setInteractive();
-                        restart.on('pointerdown', (event) => {
-                            this.scene.restart();
-                        });
-                    }
-                }
-            })
-        }
     }
 }
