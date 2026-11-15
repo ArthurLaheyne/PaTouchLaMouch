@@ -630,16 +630,16 @@ export class Sandbox extends Phaser.Scene
             }
             console.log(json);
             
-            fetch("https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch", {
-                method: "POST",
-                mode: "no-cors",
-                body: JSON.stringify({json}),
-                headers: {
-                    "Content-type": "application/json; charset=UTF-8"
-                }
-            })
-            .then((response) => response.json())
-            .then((json) => console.log(json));;
+            // L'API AWS étant éteinte (2026-11-14), on télécharge le niveau au format de levels.json.
+            // Il suffit ensuite d'ajouter l'objet téléchargé dans le tableau de levels.json.
+            const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "niveau-" + Date.now();
+            const level = { id, datetime: new Date().toISOString(), json };
+            const blob = new Blob([JSON.stringify(level, null, 2)], { type: "application/json" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "niveau-" + id + ".json";
+            link.click();
+            URL.revokeObjectURL(link.href);
         });
 
 

@@ -138,20 +138,26 @@ export class Niveau extends Phaser.Scene
         
         
         async function getData() {
-            const url = "https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch/levels/" + scene.level_id;
+            // Niveaux en fichier (levels.json) depuis l'extinction de l'API AWS, le 2026-11-14
+            const url = "levels.json";
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`);
               }
               const json = await response.json();
-              return json
+              return json.find((level) => level.id == scene.level_id)
             } catch (error) {
                 console.error(error.message);
             }
         }
         const data = await getData();
-        let levelData = JSON.parse(data.Item.json);
+        if (!data || !data.json?.start?.lines?.length || !data.json?.end?.lines?.length) {
+            console.error("Niveau introuvable ou incomplet (départ/arrivée manquant) :", scene.level_id);
+            this.scene.start('Niveaux');
+            return;
+        }
+        let levelData = data.json;
 
         console.log(levelData);
         

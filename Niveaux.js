@@ -80,14 +80,15 @@ export class Niveaux extends Phaser.Scene
         
         
         async function getData() {
-            const url = "https://hufyvhlacb.execute-api.us-west-2.amazonaws.com/patouchlamouch/levels";
+            // Niveaux en fichier (levels.json) depuis l'extinction de l'API AWS, le 2026-11-14
+            const url = "levels.json";
             try {
               const response = await fetch(url);
               if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`);
               }
               const json = await response.json();
-              return json
+              return { Items: json }
             } catch (error) {
               console.error(error.message);
             }
@@ -118,6 +119,13 @@ export class Niveaux extends Phaser.Scene
         levelsData.forEach((levelData, key) => {        
             let position = (key * 30) + 30
             let level_id_datetime_text = levelData.id + " - " + new Date(levelData.datetime).toLocaleDateString() + " " + new Date(levelData.datetime).toLocaleTimeString()
+            // Un niveau sans départ ou sans arrivée ne peut pas être joué
+            const json = levelData.json || {};
+            const jouable = json.start?.lines?.length > 0 && json.end?.lines?.length > 0;
+            if (!jouable) {
+                scene.add.text(0, position, level_id_datetime_text + " (incomplet)", { fontFamily: 'Arial Black', fontSize: 20, color: '#666666' }).setAlign('left').setOrigin(0);
+                return;
+            }
             let level = scene.add.text(0, position, level_id_datetime_text, { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0).setInteractive();
             level.on('pointerover', () => {
                 this.tweens.add({
