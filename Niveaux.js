@@ -101,13 +101,13 @@ export class Niveaux extends Phaser.Scene
         })
         levelsData.forEach((levelData, key) => {        
             let position = (key * 30) + 30
-            let level_id_datetime_text = levelData.id + " - " + new Date(levelData.datetime).toLocaleDateString() + " " + new Date(levelData.datetime).toLocaleTimeString()
+            let level_id_datetime_text = levelData.id.slice(0, 8) + " - " + new Date(levelData.datetime).toLocaleDateString() + " " + new Date(levelData.datetime).toLocaleTimeString()
             // Un niveau sans départ ou sans arrivée ne peut pas être joué
             if (!isPlayable(levelData)) {
                 scene.add.text(0, position, level_id_datetime_text + " (incomplet)", { fontFamily: 'Arial Black', fontSize: 20, color: '#666666' }).setAlign('left').setOrigin(0);
                 return;
             }
-            let level = scene.add.text(0, position, level_id_datetime_text, { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0).setInteractive();
+            let level = scene.add.text(100, position, level_id_datetime_text, { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setAlign('left').setOrigin(0).setInteractive();
             level.on('pointerover', () => {
                 this.tweens.add({
                     targets: level,
@@ -130,6 +130,18 @@ export class Niveaux extends Phaser.Scene
                 this.scene.start('Niveau', { level_id: levelData.id });
             })
             scene.levels.push(level);
+
+            // Ouvre le niveau dans l'éditeur
+            let edit = scene.add.text(0, position, "Éditer", { fontFamily: 'Arial Black', fontSize: 20, color: '#ae9600' }).setAlign('left').setOrigin(0).setInteractive();
+            edit.on('pointerover', () => {
+                this.tweens.add({ targets: edit, scaleX: 1.1, scaleY: 1.1, duration: 200, ease: 'Linear' });
+            });
+            edit.on('pointerout', () => {
+                this.tweens.add({ targets: edit, scaleX: 1, scaleY: 1, duration: 200, ease: 'Linear' });
+            });
+            edit.on('pointerdown', () => {
+                this.scene.start('Sandbox', { level: levelData });
+            });
         });
 
     }

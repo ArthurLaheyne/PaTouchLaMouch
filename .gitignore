@@ -3,3 +3,4 @@ package-lock.json
 save-level.config.php
 data/
 export-dynamodb-*/
+sauvegardes/

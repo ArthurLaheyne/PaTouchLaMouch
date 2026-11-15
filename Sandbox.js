@@ -8,6 +8,13 @@ export class Sandbox extends Phaser.Scene
         super('Sandbox');
     }
 
+    init(data)
+    {
+        // Niveau à éditer (bouton "Éditer" de la liste des niveaux), sinon nouveau niveau
+        this.editLevel = data && data.level ? data.level : null;
+        this.editLevelId = null;
+    }
+
     create()
     {
         const scene = this
@@ -532,6 +539,13 @@ export class Sandbox extends Phaser.Scene
                 });
             });
             json.intersections = jsonIntersections
+            // Ancrage exprimé avec les index de jsonLines (les lignes supprimées n'y sont pas)
+            const exportAnchor = (anchor) => {
+                if (!anchor) return undefined;
+                const index = (k) => (k === 'start' || k === 'end') ? k : jsonLines.findIndex((line) => line.name == k);
+                const out = { line: index(anchor.line), prev: index(anchor.prev), next: index(anchor.next), u: anchor.u };
+                return (out.line < 0 || out.prev === -1 || out.next === -1) ? undefined : out;
+            };
             let jsonDragons = []
             scene.dragons.forEach((dragon, dragon_key) => {
                 console.log(dragon);
@@ -551,6 +565,7 @@ export class Sandbox extends Phaser.Scene
                         return line.name == line_key;
                     })
                 });
+                jsonDragon.anchor = exportAnchor(dragon.anchor);
                 jsonDragons.push(jsonDragon);
             });
             json.dragons = jsonDragons
@@ -564,6 +579,7 @@ export class Sandbox extends Phaser.Scene
                         return line.name == line_key;
                     })
                 });
+                json.start.anchor = exportAnchor(scene.depart.anchor);
             }
             if (scene.arrivee) {
                 json.end = {
@@ -575,6 +591,7 @@ export class Sandbox extends Phaser.Scene
                         return line.name == line_key;
                     })
                 });
+                json.end.anchor = exportAnchor(scene.arrivee.anchor);
             }
             console.log(json);
             
@@ -589,6 +606,10 @@ export class Sandbox extends Phaser.Scene
             if (saving) return;
             const warnings = countWarnings();
             if (warnings > 0 && !window.confirm(warnings + " élément(s) en rouge : leur segment a changé (intersection disparue ou ajoutée). Enregistrer quand même ?")) return;
+            let action = "create";
+            if (scene.editLevelId) {
+                action = window.confirm("Remplacer le niveau d'origine ?\n\nOK : remplacer\nAnnuler : enregistrer comme nouveau niveau") ? "replace" : "create";
+            }
             const password = window.prompt("Mot de passe pour enregistrer le niveau :");
             if (password === null) return;
             saving = true;
@@ -597,11 +618,13 @@ export class Sandbox extends Phaser.Scene
                 const response = await fetch("save-level.php", {
                     method: "POST",
                     headers: { "Content-Type": "application/json; charset=UTF-8" },
-                    body: JSON.stringify({ password, json }),
+                    body: JSON.stringify({ password, action, id: scene.editLevelId, json }),
                 });
                 const result = await response.json().catch(() => null);
                 if (response.ok && result?.ok) {
-                    showMessage("Niveau enregistré !", "#006600");
+                    // Les enregistrements suivants proposeront de remplacer ce niveau
+                    scene.editLevelId = result.id;
+                    showMessage(action === "replace" ? "Niveau remplacé !" : "Niveau enregistré !", "#006600");
                 } else if (result?.error) {
                     showMessage(result.error, "#aa0000");
                 } else {
@@ -738,6 +761,61 @@ export class Sandbox extends Phaser.Scene
             if (scene.arrivee) relocate(scene.arrivee);
         }
 
+        // Recrée dans l'éditeur un niveau enregistré (lignes, dragons, départ, arrivée et leurs ancrages)
+        function loadLevel(level) {
+            const json = level.json;
+            scene.editLevelId = level.id;
+            json.lines.forEach((l, i) => {
+                const line = new Lineee("line" + i, scene, l.start.x, l.start.y, l.end.x, l.end.y);
+                line.status = "DRAWN";
+                scene.lines.push(line);
+            });
+            scene.intersections = generateIntersections(scene.lines, scene.intersections);
+
+            // Ligne de l'objet : celle enregistrée si l'objet est bien dessus, sinon la plus proche
+            // (les anciens exports pouvaient enregistrer une ligne fausse, ex. -1 pour les dragons)
+            const lineKeyFor = (keys, position) => {
+                const saved = (keys || []).find(k => scene.lines[k]);
+                if (saved !== undefined) {
+                    const line = scene.lines[saved];
+                    const t = paramOnLine(line, position);
+                    const x = line.geom.x1 + (line.geom.x2 - line.geom.x1) * t, y = line.geom.y1 + (line.geom.y2 - line.geom.y1) * t;
+                    if (Phaser.Math.Distance.Between(x, y, position.x, position.y) < 2) return saved;
+                }
+                return magnetize.magnetizeDragon(scene, scene.lines, position).line_key;
+            };
+            const restoreAnchor = (object, anchor, lineKey) => {
+                if (anchor && anchor.line === lineKey) {
+                    object.anchor = { line: anchor.line, prev: anchor.prev, next: anchor.next, u: anchor.u };
+                } else {
+                    setAnchor(object, lineKey, object);
+                }
+            };
+
+            json.dragons.forEach(d => {
+                const lineKey = lineKeyFor(d.lines, d.position);
+                const dragon = new Dragonn("dragon1", scene, d.position.x, d.position.y, 'dragon');
+                dragon.lines.push(scene.lines[lineKey]);
+                scene.lines[lineKey].dragon_keys.push(scene.dragons.length);
+                scene.dragons.push(dragon);
+                restoreAnchor(dragon, d.anchor, lineKey);
+            });
+            if (json.start && json.start.lines && json.start.lines.length) {
+                const lineKey = lineKeyFor(json.start.lines, json.start);
+                scene.depart = new Depart("depart", scene, json.start.x, json.start.y, 'depart');
+                scene.depart.lines_key.push(lineKey);
+                restoreAnchor(scene.depart, json.start.anchor, lineKey);
+            }
+            if (json.end && json.end.lines && json.end.lines.length) {
+                const lineKey = lineKeyFor(json.end.lines, json.end);
+                scene.arrivee = new Arriveee("arrivee", scene, json.end.x, json.end.y, 'flag');
+                scene.arrivee.lines_key.push(lineKey);
+                restoreAnchor(scene.arrivee, json.end.anchor, lineKey);
+            }
+            relocateAll();
+            scene.add.text(400, 0, "Édition du niveau " + level.id.slice(0, 8), { fontFamily: 'Arial Black', fontSize: 20, color: '#000000' }).setOrigin(0.5, 0);
+        }
+
         function countWarnings() {
             return [...scene.dragons, scene.depart, scene.arrivee].filter(o => o && o.anchorWarning).length;
         }
@@ -817,6 +895,9 @@ export class Sandbox extends Phaser.Scene
             return intersections;
         }
 
+        if (this.editLevel) {
+            loadLevel(this.editLevel);
+        }
     }
 
     preload ()
