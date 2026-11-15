@@ -119,6 +119,10 @@ export class Game extends Phaser.Scene
 
         this.objects = []
 
+        // Partie terminée (victoire ou mort) : plus aucun déplacement possible
+
+        this.gameOver = false
+
         this.player = new Player(this, 300, 300, 'flower')
 
         this.graphics = this.add.graphics({ lineStyle: { width: 4, color: 0xaa00aa } })
@@ -253,7 +257,7 @@ export class Game extends Phaser.Scene
         this.dragon10 = new Dragon("dragon10", scene, 125, 135, 'dragon', this.player);
         this.dragon10.addLine(this.line5)
 
-        this.dragons = [this.dragon1, this.dragon2, this.dragon3, this.dragon4, this.dragon5, this.dragon6, this.dragon7, this.dragon8, this.dragon9, this.dragon9];
+        this.dragons = [this.dragon1, this.dragon2, this.dragon3, this.dragon4, this.dragon5, this.dragon6, this.dragon7, this.dragon8, this.dragon9, this.dragon10];
 
         this.arrivee = new Arrivee("arrivee", scene, 550, 300, 'flag', this.player);
         this.arrivee.addLine(this.line3)
@@ -267,7 +271,7 @@ export class Game extends Phaser.Scene
 
         this.objects.forEach(object => {
             object.on('pointerdown', (pointer, gameObjects) => {
-                if (object.isReachable()) {
+                if (!this.gameOver && object.isReachable()) {
                     // Move at 200 px/s:
                     this.player.setObject(object)
                     if (this.player.object.constructor.name != "Intersection") {
@@ -321,6 +325,7 @@ export class Game extends Phaser.Scene
                 }
                 else if (this.player.object.constructor.name == "Arrivee") {
                     this.player.setLines(this.player.object.lines)
+                    this.gameOver = true;
                     let bravo = this.add.image(550, 400, 'bravo').setInteractive();
                     bravo.on('pointerdown', (event) => {
                         this.scene.restart();
@@ -334,10 +339,12 @@ export class Game extends Phaser.Scene
             let distanceToDragon = Phaser.Math.Distance.BetweenPoints(this.player, dragon);
             if (this.player.body.speed > 0)
             {
-                if (distanceToDragon < toleranceToDragon)
+                if (!this.gameOver && distanceToDragon < toleranceToDragon)
                 {
                     this.player.body.reset(dragon.x, dragon.y);
                     dragon.anims.play('dragon')
+                    
+                    this.gameOver = true;
                     
                     let restart = this.add.image(550, 400, 'recommencer').setInteractive();
                     restart.on('pointerdown', (event) => {
