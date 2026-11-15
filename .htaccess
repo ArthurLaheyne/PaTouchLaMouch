@@ -1,6 +1,6 @@
 # Pas de listing des fichiers ; /patouchlamouch/ ouvre directement le jeu
 Options -Indexes
-DirectoryIndex game-niveau1.html
+DirectoryIndex index.html
 
 # Fichiers internes jamais servis
 <FilesMatch "^(save-level\.config\.php|package(-lock)?\.json|\.gitignore|levels\.bak\.json)$">

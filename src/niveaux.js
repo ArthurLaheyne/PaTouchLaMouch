@@ -1,7 +1,7 @@
-// Chargement des niveaux.
+// Chargement des niveaux (format : voir format-niveau.js).
 //
 // - levels.json : niveaux officiels, versionnés dans git et déployés (ex. "niveau-1", lancé par « Click to Start »)
-// - data/levels.json : niveaux créés ou modifiés en ligne via save-level.php (uniquement sur le serveur,
+// - data/levels.json : niveaux créés ou modifiés en ligne via api/save-level.php (uniquement sur le serveur,
 //   jamais écrasé par le déploiement)
 // Les deux listes sont fusionnées ; un niveau officiel modifié dans l'éditeur (même id dans data/levels.json)
 // remplace la version officielle.
@@ -24,9 +24,4 @@ export async function loadLevels() {
     const merged = official.map(level => onlineById.get(level.id) || level);
     const officialIds = new Set(official.map(level => level.id));
     return [...merged, ...online.filter(level => !officialIds.has(level.id))];
-}
-
-export function isPlayable(level) {
-    const json = level?.json || {};
-    return json.start?.lines?.length > 0 && json.end?.lines?.length > 0;
 }

@@ -1,54 +1,12 @@
-<!doctype html> 
-<html lang="en"> 
-<head> 
+<!doctype html>
+<html lang="fr">
+<head>
     <meta charset="UTF-8" />
-    <title>Making your first Phaser 3 Game - Part 10</title>
-    <script src="//cdn.jsdelivr.net/npm/phaser@3.85.2/dist/phaser.js"></script>
-    <style type="text/css">
-        body {
-            margin: 0;
-        }
-    </style>
+    <!-- Ancienne adresse du jeu : redirige vers la page principale -->
+    <meta http-equiv="refresh" content="0; url=./" />
+    <title>PaTouchLaMouch</title>
 </head>
 <body>
-
-<!-- <script type="module" src="Boot.js"></script> -->
-<script type="module">
-
-import { Boot } from './Boot.js';
-import { MainMenu } from "./MainMenu.js";
-import { Preloader } from "./Preloader.js";
-import { Sandbox } from "./Sandbox.js";
-import { Niveaux } from "./Niveaux.js";
-import { Niveau } from "./Niveau.js";
-
-var config = {
-    type: Phaser.AUTO,
-    scale: {
-        parent: 'phaser-example',
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 800,
-        height: 600
-    },
-    physics: {
-        default: 'arcade',
-    },
-    scene: [
-        Boot,
-        Preloader,
-        MainMenu,
-        Sandbox,
-        Niveaux,
-        Niveau,
-    ]
-};
-
-    var game = new Phaser.Game(config);
-
-    
-
-</script>
-
+    <a href="./">PaTouchLaMouch</a>
 </body>
 </html>

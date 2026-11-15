@@ -39,7 +39,7 @@ export async function startServer() {
     }
     // Même génération que la CI (var_export : le hash contient des $ qu'il ne faut pas laisser interpréter par PHP)
     const config = execFileSync('php', ['-r', 'echo "<?php\\nreturn [\'password_hash\' => " . var_export(password_hash($argv[1], PASSWORD_DEFAULT), true) . "];\\n";', PASSWORD]).toString();
-    writeFileSync(join(dir, 'save-level.config.php'), config);
+    writeFileSync(join(dir, 'api', 'save-level.config.php'), config);
     const port = await freePort();
     const php = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', dir], { stdio: 'ignore' });
     const url = `http://127.0.0.1:${port}/`;
@@ -62,7 +62,7 @@ export async function startServer() {
 }
 
 export async function api(url, body) {
-    const response = await fetch(url + 'save-level.php', { method: 'POST', body: JSON.stringify({ password: PASSWORD, ...body }) });
+    const response = await fetch(url + 'api/save-level.php', { method: 'POST', body: JSON.stringify({ password: PASSWORD, ...body }) });
     return { status: response.status, body: await response.json() };
 }
 
@@ -71,19 +71,14 @@ export async function onlineLevels(url) {
     return response.ok ? response.json() : [];
 }
 
-// Ouvre le jeu (instance Phaser exposée dans window.game) et attend le menu
+// Ouvre le jeu et attend le menu
 export async function openGame(url) {
     const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
     const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('dialog', d => (d.type() === 'prompt' ? d.accept(PASSWORD) : d.accept()));
-    await page.route('**/game-niveau1.html', async route => {
-        const response = await route.fetch();
-        const body = (await response.text()).replace('var game = new Phaser.Game(config);', 'var game = new Phaser.Game(config); window.game = game;');
-        route.fulfill({ response, body });
-    });
-    await page.goto(url + 'game-niveau1.html');
+    await page.goto(url + 'index.html'); // window.game est exposé par src/main.js
     await page.waitForFunction(() => window.game && game.scene.isActive('MainMenu') && !game.scene.isActive('Preloader'), null, { timeout: 30000 });
     await page.waitForTimeout(300);
     const box = await page.evaluate(() => {

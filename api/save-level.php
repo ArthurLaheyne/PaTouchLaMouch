@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $configFile = __DIR__ . '/save-level.config.php';
+$root = dirname(__DIR__); // racine du jeu (levels.json, data/)
 if (!is_file($configFile)) {
     reply(500, ['error' => 'Enregistrement non configuré sur le serveur']);
 }
@@ -190,7 +191,7 @@ $now = gmdate('Y-m-d\TH:i:s.v\Z');
 
 // ---- Lecture / écriture avec verrou ----
 
-$dataDir = __DIR__ . '/data';
+$dataDir = $root . '/data';
 $dataFile = $dataDir . '/levels.json';
 if (!is_dir($dataDir) && !mkdir($dataDir, 0755, true)) {
     reply(500, ['error' => 'Impossible de créer le dossier data']);
@@ -228,7 +229,7 @@ if ($action === 'create') {
         }
     }
     if ($index === null) {
-        $official = json_decode(@file_get_contents(__DIR__ . '/levels.json') ?: '[]', true);
+        $official = json_decode(@file_get_contents($root . '/levels.json') ?: '[]', true);
         $isOfficial = is_array($official) && in_array($id, array_column($official, 'id'), true);
         if ($isOfficial && $action === 'replace') {
             // Première modification d'un niveau officiel : sa version modifiée est ajoutée aux niveaux en ligne

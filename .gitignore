@@ -1,6 +1,7 @@
 node_modules
 package-lock.json
 save-level.config.php
+api/save-level.config.php
 data/
 export-dynamodb-*/
 sauvegardes/

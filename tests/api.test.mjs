@@ -12,14 +12,14 @@ const level = (extra = {}) => ({
     ...extra,
 });
 
-describe('save-level.php', () => {
+describe('api/save-level.php', () => {
     let server;
     before(async () => { server = await startServer(); });
     after(() => server.stop());
 
     it('refuse un GET et un mauvais mot de passe', async () => {
-        assert.equal((await fetch(server.url + 'save-level.php')).status, 405);
-        const r = await fetch(server.url + 'save-level.php', { method: 'POST', body: JSON.stringify({ password: 'faux', json: level() }) });
+        assert.equal((await fetch(server.url + 'api/save-level.php')).status, 405);
+        const r = await fetch(server.url + 'api/save-level.php', { method: 'POST', body: JSON.stringify({ password: 'faux', json: level() }) });
         assert.equal(r.status, 401);
     });
 

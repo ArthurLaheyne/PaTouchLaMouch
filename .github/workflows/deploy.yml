@@ -52,8 +52,8 @@ jobs:
 
       - name: Vérification de la syntaxe
         run: |
-          php -l save-level.php
-          for f in *.js; do node --check --input-type=module < "$f"; done
+          php -l api/save-level.php
+          find src -name '*.js' -print0 | while IFS= read -r -d '' f; do node --check --input-type=module < "$f"; done
           python3 -c "import json; json.load(open('levels.json'))"
 
       - name: Dates des fichiers = date du dernier commit
@@ -67,7 +67,7 @@ jobs:
           LEVEL_PASSWORD: ${{ secrets.LEVEL_PASSWORD }}
         run: |
           test -n "$LEVEL_PASSWORD" || { echo "Secret LEVEL_PASSWORD manquant"; exit 1; }
-          php -r '$h = password_hash(getenv("LEVEL_PASSWORD"), PASSWORD_DEFAULT); echo "<?php\nreturn [\"password_hash\" => " . var_export($h, true) . "];\n";' > save-level.config.php
+          php -r '$h = password_hash(getenv("LEVEL_PASSWORD"), PASSWORD_DEFAULT); echo "<?php\nreturn [\"password_hash\" => " . var_export($h, true) . "];\n";' > api/save-level.config.php
 
       - name: Fichiers retirés de git par ce push
         env:
