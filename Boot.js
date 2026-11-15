@@ -16,9 +16,6 @@ export class Boot extends Phaser.Scene
 
     create ()
     {
-        //  A global value to store the highscore in
-        this.registry.set('highscore', 0);
-
         this.scene.start('Preloader');
 
         // this.input.once('pointerdown', () => {

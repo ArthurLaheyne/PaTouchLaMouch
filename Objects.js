@@ -25,29 +25,6 @@ export class Line extends Phaser.Geom.Line {
     }
 }
 
-export class Linee extends Phaser.Geom.Line {
-    constructor(name, scene, graphics, x1, y1, x2, y2) {
-        super(x1, y1, x2, y2);
-
-        this.name = name
-        this.objects = []
-        this.dragons = []
-        this.graphics = graphics
-        this.stroke()
-        this.status = "DRAWING"
-        this.setInteractive();
-    }
-    addObjects = function (objects) {
-        this.objects.push(...objects)
-    }
-    stroke = function () {
-        this.graphics.strokeLineShape(this)
-    }
-    clear = function () {
-        this.graphics.clear()
-    }
-}
-
 export class Lineee extends Phaser.GameObjects.Line {
     constructor(name, scene, x1, y1, x2, y2) {
         super(scene, undefined, undefined, x1, y1, x2, y2, '0xaa00aa', 1);
@@ -115,38 +92,6 @@ export class Player extends Phaser.GameObjects.Sprite {
     }
     setLines(lines) {
         this.lines = lines
-    }
-}
-
-export class Dude extends Phaser.GameObjects.Sprite { // 
-    constructor(name, scene, x, y, texture, player) {
-        super(scene, x, y, texture);
-        
-        // Mimics scene.physics.add.image() https://github.com/phaserjs/phaser/blob/v3.70.0/src/physics/arcade/Factory.js#L159
-        scene.sys.displayList.add(this);
-        scene.sys.updateList.add(this);
-        scene.physics.world.enableBody(this);
-
-        this.name = name
-        this.setInteractive()
-        this.lines = []
-        this.player = player
-        this.glow = this.preFX.addGlow().setActive(false)
-        this.on("pointerover", () => {
-            if (this.isReachable()) {
-                this.glow.setActive(true)
-            }
-        }).on("pointerout", () => {
-            this.glow.setActive(false)
-        })
-        
-        scene.objects.push(this)
-    }
-    isReachable() {
-        return this.player.getObjectsReachable().includes(this)
-    }
-    addLine(line) {
-        this.lines.push(line)
     }
 }
 

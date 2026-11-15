@@ -7,7 +7,8 @@
 #
 # Envoi en SFTP (OVH ne gère pas le FTPS). Les dates des fichiers sont celles de leur dernier commit,
 # ce qui permet à lftp de ne renvoyer que les fichiers modifiés.
-# data/ (niveaux enregistrés depuis la Sandbox) n'est jamais touché, et rien n'est supprimé sur le serveur.
+# data/ (niveaux enregistrés depuis la Sandbox) n'est jamais touché. Seuls sont supprimés du serveur les fichiers
+# retirés de git par les commits de ce push (git diff entre le commit d'avant le push et le nouveau).
 name: Déploiement OVH
 
 on:
@@ -51,6 +52,23 @@ jobs:
           test -n "$LEVEL_PASSWORD" || { echo "Secret LEVEL_PASSWORD manquant"; exit 1; }
           php -r '$h = password_hash(getenv("LEVEL_PASSWORD"), PASSWORD_DEFAULT); echo "<?php\nreturn [\"password_hash\" => " . var_export($h, true) . "];\n";' > save-level.config.php
 
+      - name: Fichiers retirés de git par ce push
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          : > "$RUNNER_TEMP/suppressions.lftp"
+          # Pas de commit précédent (lancement manuel, nouvelle branche) : rien à supprimer
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "Aucune suppression"; exit 0
+          fi
+          git diff --name-only --no-renames --diff-filter=D "$BEFORE" "$GITHUB_SHA" | while IFS= read -r f; do
+            case "$f" in
+              data/*|.github/*|tests/*|*..*|*\'*|*\"*|'') continue ;;  # jamais déployés, ou chemin suspect
+            esac
+            echo "Suppression : $f"
+            echo "rm -f \"$REMOTE_DIR/$f\"" >> "$RUNNER_TEMP/suppressions.lftp"
+          done
+
       - name: Envoi SFTP
         env:
           SFTP_USER: ${{ secrets.FTP_USERNAME }}
@@ -73,5 +91,7 @@ jobs:
               --exclude '^export-dynamodb-' \
               --exclude '^package(-lock)?\.json$' \
               --exclude '\.xcf$' \
+              --exclude '^tests/' \
               ./ $REMOTE_DIR
+            source $RUNNER_TEMP/suppressions.lftp
           "

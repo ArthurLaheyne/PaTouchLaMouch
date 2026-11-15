@@ -1116,34 +1116,6 @@ export class Sandbox extends Phaser.Scene
         }
     }
 
-    preload ()
-    {
-        // this.load.setBaseURL('https://cdn.phaserfiles.com/v385');
-        //  Load the https://labs.phaser.io/assets for the game - Replace with the path to your own https://labs.phaser.io/assets
-        // this.load.setPath("assets/games/coin-clicker/");
-
-        this.load.image("delete", "assets/delete.png");
-        this.load.image("drag", "assets/drag.png");
-        this.load.image("background", "assets/background.png");
-        this.load.image("patouchlamouch", "assets/PaTouch-LaMouch.png");
-        this.load.atlas('coin', 'assets/coin.png', 'assets/coin.json');
-        this.load.image('ocean', 'assets/oceanx700.jpg');
-        this.load.image('bravo', 'assets/bravo.png');
-        this.load.image('recommencer', 'assets/recommencer.png');
-        this.load.image('back', 'assets/back.png');
-        this.load.image('fullscreen', 'assets/fullscreen-2.png');
-        this.load.spritesheet('dragon', 'assets/dragon3.png', { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet('flag', 'assets/flag.png', { frameWidth: 46, frameHeight: 40 });
-        this.load.spritesheet('depart', 'assets/depart.png', { frameWidth: 46, frameHeight: 40 });
-        this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', { frameWidth: 32, frameHeight: 48 });
-        // this.load.setBaseURL('https://cdn.phaserfiles.com/v385');
-        this.load.image('flower', 'https://labs.phaser.io/assets/sprites/flower-exo.png');
-        this.load.image('cursor', 'https://labs.phaser.io/assets/sprites/drawcursor.png');
-        this.load.image('restart', 'assets/refresh-small-2.png');
-        this.load.spritesheet('diamonds', 'https://labs.phaser.io/assets/sprites/diamonds32x24x5.png', { frameWidth: 32, frameHeight: 24 });
-        this.load.spritesheet('portal', 'assets/portal.png', { frameWidth: 46, frameHeight: 48 });
-    }
-
     update()
     {
     }

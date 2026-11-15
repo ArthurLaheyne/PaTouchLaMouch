@@ -110,18 +110,6 @@ export class Niveau extends Phaser.Scene
             frameRate: 10,
             repeat: -1
         });
-        this.anims.create({
-            key: 'dude',
-            frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'intersection',
-            frames: this.anims.generateFrameNumbers('diamonds', { start: 0, end: 3 }),
-            frameRate: 10,
-            repeat: -1
-        });
 
         this.anims.create({
             key: 'dragon',
