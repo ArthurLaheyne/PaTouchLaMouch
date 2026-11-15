@@ -1,4 +1,4 @@
-import { Line, Player, Teleporteur, Dragon, Intersection, Arrivee } from './Objects.js';
+import { loadLevels, isPlayable } from './levels.js';
 
 export class Niveaux extends Phaser.Scene
 {
@@ -73,26 +73,9 @@ export class Niveaux extends Phaser.Scene
             });
         });
 
-        const data = await getData();
-        let levelsData = data.Items;
+        // Niveaux en fichier depuis l'extinction de l'API AWS, le 2026-11-14 (voir levels.js)
+        let levelsData = await loadLevels();
         console.log(levelsData);
-        
-        
-        
-        async function getData() {
-            // Niveaux en fichier (levels.json) depuis l'extinction de l'API AWS, le 2026-11-14
-            const url = "levels.json";
-            try {
-              const response = await fetch(url);
-              if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`);
-              }
-              const json = await response.json();
-              return { Items: json }
-            } catch (error) {
-              console.error(error.message);
-            }
-        }
 
         let level_new = scene.add.text(0, 0, "Nouveau niveau", { fontFamily: 'Arial Black', fontSize: 20, color: '#ae9600' }).setAlign('left').setOrigin(0).setInteractive();
         level_new.on('pointerover', () => {
@@ -120,9 +103,7 @@ export class Niveaux extends Phaser.Scene
             let position = (key * 30) + 30
             let level_id_datetime_text = levelData.id + " - " + new Date(levelData.datetime).toLocaleDateString() + " " + new Date(levelData.datetime).toLocaleTimeString()
             // Un niveau sans départ ou sans arrivée ne peut pas être joué
-            const json = levelData.json || {};
-            const jouable = json.start?.lines?.length > 0 && json.end?.lines?.length > 0;
-            if (!jouable) {
+            if (!isPlayable(levelData)) {
                 scene.add.text(0, position, level_id_datetime_text + " (incomplet)", { fontFamily: 'Arial Black', fontSize: 20, color: '#666666' }).setAlign('left').setOrigin(0);
                 return;
             }

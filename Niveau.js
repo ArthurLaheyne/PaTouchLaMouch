@@ -1,4 +1,5 @@
 import { Line, Player, Teleporteur, Dragon, Intersection, Arrivee } from './Objects.js';
+import { loadLevels, isPlayable } from './levels.js';
 
 export class Niveau extends Phaser.Scene
 {
@@ -137,22 +138,9 @@ export class Niveau extends Phaser.Scene
         
         
         
-        async function getData() {
-            // Niveaux en fichier (levels.json) depuis l'extinction de l'API AWS, le 2026-11-14
-            const url = "levels.json";
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`);
-              }
-              const json = await response.json();
-              return json.find((level) => level.id == scene.level_id)
-            } catch (error) {
-                console.error(error.message);
-            }
-        }
-        const data = await getData();
-        if (!data || !data.json?.start?.lines?.length || !data.json?.end?.lines?.length) {
+        // Niveaux en fichier depuis l'extinction de l'API AWS, le 2026-11-14 (voir levels.js)
+        const data = (await loadLevels()).find((level) => level.id == scene.level_id);
+        if (!isPlayable(data)) {
             console.error("Niveau introuvable ou incomplet (départ/arrivée manquant) :", scene.level_id);
             this.scene.start('Niveaux');
             return;

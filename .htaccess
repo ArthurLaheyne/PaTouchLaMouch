@@ -1,0 +1,15 @@
+# Pas de listing des fichiers ; /patouchlamouch/ ouvre directement le jeu
+Options -Indexes
+DirectoryIndex game-niveau1.html
+
+# Fichiers internes jamais servis
+<FilesMatch "^(save-level\.config\.php|\.ftp-deploy-sync-state\.json|package(-lock)?\.json|\.gitignore|levels\.bak\.json)$">
+    Require all denied
+</FilesMatch>
+
+# Les niveaux doivent toujours être relus (nouveaux niveaux enregistrés)
+<IfModule mod_headers.c>
+    <FilesMatch "levels\.json$">
+        Header set Cache-Control "no-store"
+    </FilesMatch>
+</IfModule>

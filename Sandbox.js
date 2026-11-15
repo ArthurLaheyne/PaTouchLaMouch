@@ -427,6 +427,7 @@ export class Sandbox extends Phaser.Scene
                                 }
                             })
                             magnetPoint.line.dragon_keys.push(key);
+                            dragon.lines = [magnetPoint.line];
                             dragon.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                             dragon.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         });
@@ -440,7 +441,7 @@ export class Sandbox extends Phaser.Scene
                     depart.handle.on('drag', function (pointer, dragX, dragY) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         // Retirer le dragon des autres lignes
-                        depart.lines_key.push(magnetPoint.line_key)
+                        depart.lines_key = [magnetPoint.line_key]
                         depart.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         depart.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
@@ -453,7 +454,7 @@ export class Sandbox extends Phaser.Scene
                     arrivee.handle.on('drag', function (pointer, dragX, dragY) {
                         let magnetPoint = magnetize.magnetizeDragon(scene, scene.lines, pointer, false);
                         // Retirer le dragon des autres lignes
-                        arrivee.lines_key.push(magnetPoint.line_key)
+                        arrivee.lines_key = [magnetPoint.line_key]
                         arrivee.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                         arrivee.handle.setPosition(magnetPoint.nearest_point.x, magnetPoint.nearest_point.y)
                     });
@@ -570,7 +571,7 @@ export class Sandbox extends Phaser.Scene
                     // On vérifie que ce n'est pas une intersection déjà existante, si c'est le cas, on ajoute la ligne parmis les lignes de l'intersection
                     let exists = false;
                     jsonIntersections.forEach(jsonIntersection => {
-                        if (jsonIntersection.position.x == jsonIntersectionNew.position.x && jsonIntersectionNew.position.y == jsonIntersectionNew.position.y) {
+                        if (jsonIntersection.position.x == jsonIntersectionNew.position.x && jsonIntersection.position.y == jsonIntersectionNew.position.y) {
                             if (!jsonIntersection.lines.includes(lineA_index)) {
                                 jsonIntersection.lines.push(lineA_index)
                             }
@@ -598,7 +599,9 @@ export class Sandbox extends Phaser.Scene
                     },
                     "lines": []
                 }
-                jsonDragon.lines = dragon.lines.map(line_key => {
+                // dragon.lines contient les objets Lineee : on retrouve leur index dans scene.lines, puis dans jsonLines
+                jsonDragon.lines = dragon.lines.map(lineObject => {
+                    const line_key = scene.lines.indexOf(lineObject);
                     return jsonLines.findIndex((line) => {
                         return line.name == line_key;
                     })
@@ -630,8 +633,45 @@ export class Sandbox extends Phaser.Scene
             }
             console.log(json);
             
-            // L'API AWS étant éteinte (2026-11-14), on télécharge le niveau au format de levels.json.
-            // Il suffit ensuite d'ajouter l'objet téléchargé dans le tableau de levels.json.
+            saveLevel(json);
+        });
+
+
+        // Enregistre le niveau sur le serveur (save-level.php, remplace l'API AWS éteinte le 2026-11-14).
+        // Sans serveur PHP (ex. en local avec http-server), propose de télécharger le niveau à la place.
+        let saving = false;
+        async function saveLevel(json) {
+            if (saving) return;
+            const password = window.prompt("Mot de passe pour enregistrer le niveau :");
+            if (password === null) return;
+            saving = true;
+            showMessage("Enregistrement...", "#000000");
+            try {
+                const response = await fetch("save-level.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=UTF-8" },
+                    body: JSON.stringify({ password, json }),
+                });
+                const result = await response.json().catch(() => null);
+                if (response.ok && result?.ok) {
+                    showMessage("Niveau enregistré !", "#006600");
+                } else if (result?.error) {
+                    showMessage(result.error, "#aa0000");
+                } else {
+                    throw new Error("HTTP " + response.status);
+                }
+            } catch (error) {
+                console.error(error);
+                showMessage("Serveur indisponible", "#aa0000");
+                if (window.confirm("Le serveur n'a pas pu enregistrer le niveau. Le télécharger à la place ?")) {
+                    downloadLevel(json);
+                }
+            } finally {
+                saving = false;
+            }
+        }
+
+        function downloadLevel(json) {
             const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "niveau-" + Date.now();
             const level = { id, datetime: new Date().toISOString(), json };
             const blob = new Blob([JSON.stringify(level, null, 2)], { type: "application/json" });
@@ -640,7 +680,14 @@ export class Sandbox extends Phaser.Scene
             link.download = "niveau-" + id + ".json";
             link.click();
             URL.revokeObjectURL(link.href);
-        });
+        }
+
+        let messageText = null;
+        function showMessage(text, color) {
+            if (messageText) messageText.destroy();
+            messageText = scene.add.text(400, 570, text, { fontFamily: 'Arial Black', fontSize: 20, color }).setOrigin(0.5).setDepth(100);
+            scene.time.delayedCall(4000, () => { if (messageText && messageText.text === text) { messageText.destroy(); messageText = null; } });
+        }
 
 
         function deleteLine(key) {
