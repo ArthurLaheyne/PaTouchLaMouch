@@ -44,9 +44,9 @@ export class Preloader extends Phaser.Scene
         this.load.spritesheet('dragon', 'assets/dragon3.png', { frameWidth: 64, frameHeight: 64 });
         this.load.spritesheet('flag', 'assets/flag.png', { frameWidth: 46, frameHeight: 40 });
         // this.load.setBaseURL('https://cdn.phaserfiles.com/v385');
-        this.load.image('flower', 'https://labs.phaser.io/assets/sprites/flower-exo.png');
+        this.load.image('flower', 'assets/joueur.png'); // copie locale de labs.phaser.io/assets/sprites/flower-exo.png
         this.load.image('restart', 'assets/refresh-small-2.png');
-        this.load.spritesheet('diamonds', 'https://labs.phaser.io/assets/sprites/diamonds32x24x5.png', { frameWidth: 32, frameHeight: 24 });
+        this.load.spritesheet('diamonds', 'assets/diamants.png', { frameWidth: 32, frameHeight: 24 }); // copie locale de labs.phaser.io/assets/sprites/diamonds32x24x5.png
         this.load.spritesheet('portal', 'assets/portal.png', { frameWidth: 46, frameHeight: 48 });
     }
 

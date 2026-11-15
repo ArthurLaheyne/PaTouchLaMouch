@@ -97,7 +97,8 @@ export class Niveaux extends Phaser.Scene
             });
         });
         level_new.on('pointerdown', () => {
-            this.scene.start('Sandbox');
+            // {} explicite : sans données, Phaser rouvrirait la Sandbox avec celles du dernier niveau édité
+            this.scene.start('Sandbox', {});
         })
         levelsData.forEach((levelData, key) => {        
             let position = (key * 30) + 30
