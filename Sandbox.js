@@ -593,6 +593,16 @@ export class Sandbox extends Phaser.Scene
                 });
                 json.end.anchor = exportAnchor(scene.arrivee.anchor);
             }
+            if (scene.loadedPortals !== undefined) {
+                const remapEnd = (end) => {
+                    const lines = end.lines.map(line_key => jsonLines.findIndex((line) => line.name == line_key));
+                    return lines.includes(-1) ? null : { x: end.x, y: end.y, lines };
+                };
+                json.portals = scene.loadedPortals.map(pair => {
+                    const a = remapEnd(pair.a), b = remapEnd(pair.b);
+                    return a && b ? { a, b, consumable: !!pair.consumable, oneWay: !!pair.oneWay } : null;
+                }).filter(Boolean);
+            }
             console.log(json);
             
             saveLevel(json);
@@ -765,6 +775,9 @@ export class Sandbox extends Phaser.Scene
         function loadLevel(level) {
             const json = level.json;
             scene.editLevelId = level.id;
+            // TEMPORAIRE, en attendant la gestion des portails dans l'éditeur : on les garde tels quels pour les
+            // réenregistrer (lignes renumérotées à l'export). Ils ne sont ni affichés ni déplacés avec les fils.
+            scene.loadedPortals = json.portals;
             json.lines.forEach((l, i) => {
                 const line = new Lineee("line" + i, scene, l.start.x, l.start.y, l.end.x, l.end.y);
                 line.status = "DRAWN";

@@ -37,6 +37,11 @@ export function startGameplay(scene) {
             if (!(object instanceof Intersection)) {
                 player.setLines(object.lines);
             }
+            // Clic sur l'objet où l'on se trouve déjà (ex. portail par lequel on vient d'arriver) : il s'active
+            if (Phaser.Math.Distance.BetweenPoints(player, object) < 1) {
+                arrive(scene, object);
+                return;
+            }
             scene.physics.moveToObject(player, object, SPEED);
         });
     });
@@ -61,20 +66,41 @@ function arrive(scene, object) {
     if (object instanceof Intersection) {
         player.setLines(object.lines);
     } else if (object instanceof Teleporteur) {
-        if (!object.disabled) {
-            player.body.reset(object.brother.x, object.brother.y);
-            player.setObject(object.brother);
-            player.setLines(object.brother.lines);
-            if (object.isConsumable) {
-                player.setObject(null);
-                object.destroy(true);
-                object.brother.destroy(true);
-            }
+        if (object.brother && !object.disabled) {
+            teleport(scene, object);
+        } else {
+            // Sortie d'un portail à sens unique : simple arrêt
+            player.setLines(object.lines);
         }
     } else if (object instanceof Arrivee) {
         player.setLines(object.lines);
         endGame(scene, 'bravo');
     }
+}
+
+function teleport(scene, portal) {
+    const player = scene.player;
+    const exit = portal.brother;
+    player.body.reset(exit.x, exit.y);
+    player.setObject(exit);
+    player.setLines(exit.lines);
+    if (portal.isConsumable) {
+        consume(portal);
+        consume(portal.partner || exit);
+        // Si la sortie remplaçait une intersection, le joueur se retrouve sur cette intersection
+        player.setObject(exit.replaces || null);
+    }
+}
+
+// Retire un portail du jeu ; l'intersection qu'il remplaçait réapparaît
+function consume(portal) {
+    portal.lines.forEach(line => {
+        line.objects = line.objects.filter(object => object !== portal);
+    });
+    if (portal.replaces) {
+        portal.replaces.setVisible(true).setInteractive();
+    }
+    portal.destroy(true);
 }
 
 function die(scene, dragon) {

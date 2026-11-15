@@ -5,8 +5,10 @@
 //   create  (par défaut) : ajoute le niveau "json", renvoie son nouvel id
 //   replace : remplace le contenu du niveau "id" par "json" (même id, date mise à jour)
 //   delete  : supprime le niveau "id"
-// "json" : { lines, intersections, dragons, start, end }. Dragons, départ et arrivée peuvent porter un
-// "anchor" (segment entre deux bornes, utilisé par l'éditeur pour rouvrir le niveau ; ignoré par le jeu).
+// "json" : { lines, intersections, dragons, start, end, portals? }. Dragons, départ, arrivée et portails peuvent
+// porter un "anchor" (segment entre deux bornes, utilisé par l'éditeur pour rouvrir le niveau ; ignoré par le jeu).
+// "portals" (facultatif) : paires { a: {x, y, lines}, b: {x, y, lines}, consumable, oneWay }. Absent, le jeu met un
+// portail à chaque bout de chaque fil (anciens niveaux) ; présent, même vide, seuls ces portails existent.
 //
 // Les niveaux sont dans data/levels.json (initialisé depuis levels.json au premier enregistrement),
 // la version précédente dans data/levels.bak.json.
@@ -148,7 +150,38 @@ function validateLevel($level) {
     $start = $endpoint($level['start'] ?? null, 'Départ manquant');
     $end = $endpoint($level['end'] ?? null, 'Arrivée manquante');
 
-    return compact('lines', 'intersections', 'dragons', 'start', 'end');
+    $out = compact('lines', 'intersections', 'dragons', 'start', 'end');
+
+    if (array_key_exists('portals', $level)) {
+        if (!is_array($level['portals']) || count($level['portals']) > MAX_ITEMS) {
+            invalid('Portails invalides');
+        }
+        $portalEnd = function ($p) use ($lineCount) {
+            if (!isPoint($p) || !is_array($p['lines'] ?? null) || count($p['lines']) === 0 || count($p['lines']) > MAX_ITEMS) {
+                return null;
+            }
+            foreach ($p['lines'] as $k) {
+                if (!isLineKey($k, $lineCount)) {
+                    return null;
+                }
+            }
+            $end = point($p) + ['lines' => array_values($p['lines'])];
+            if ($a = anchor($p['anchor'] ?? null, $lineCount)) {
+                $end['anchor'] = $a;
+            }
+            return $end;
+        };
+        $out['portals'] = [];
+        foreach (array_values($level['portals']) as $i => $pair) {
+            $a = is_array($pair) ? $portalEnd($pair['a'] ?? null) : null;
+            $b = is_array($pair) ? $portalEnd($pair['b'] ?? null) : null;
+            if (!$a || !$b) {
+                invalid("Portail $i invalide");
+            }
+            $out['portals'][] = ['a' => $a, 'b' => $b, 'consumable' => (bool) ($pair['consumable'] ?? false), 'oneWay' => (bool) ($pair['oneWay'] ?? false)];
+        }
+    }
+    return $out;
 }
 
 $levelJson = $action === 'delete' ? null : validateLevel($payload['json'] ?? null);

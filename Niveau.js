@@ -153,8 +153,12 @@ export class Niveau extends Phaser.Scene
 
         scene.player = new Player(this, levelData.start.x, levelData.start.y, 'flower')
         
+        // Portails : liste explicite de paires "portals" ; sans elle (anciens niveaux), un portail à chaque bout
+        // de chaque fil, qui mène à l'autre bout du même fil
+        const explicitPortals = Array.isArray(levelData.portals);
+
         levelData.lines.forEach((lineData, key) => {
-            let line = new Line(`line${key}`, scene, this.graphics, lineData.start.x, lineData.start.y, lineData.end.x, lineData.end.y, this.player)
+            let line = new Line(`line${key}`, scene, this.graphics, lineData.start.x, lineData.start.y, lineData.end.x, lineData.end.y, this.player, !explicitPortals)
             this.lines.push(line);
         });
 
@@ -166,6 +170,10 @@ export class Niveau extends Phaser.Scene
             });
             this.intersections.push(intersection);
         });
+
+        if (explicitPortals) {
+            createPortals(scene, levelData.portals);
+        }
 
         this.player.setLines(levelData.start.lines.map(line_key => this.lines[line_key]))
         // this.player.setObject(scene.intersections[0]);
@@ -189,4 +197,37 @@ export class Niveau extends Phaser.Scene
     update()
     {
     }
+}
+
+// Crée les paires de portails d'un niveau.
+// Chaque paire : { a: {x, y, lines}, b: {x, y, lines}, consumable, oneWay }
+//   consumable : la paire disparaît après usage
+//   oneWay     : on ne va que de a vers b (b est une simple sortie)
+// Un portail posé sur une intersection la remplace : l'intersection est masquée, le portail prend tous ses fils
+// (on peut y aller depuis chacun d'eux, et en sortant de l'autre portail on accède à tous). Si la paire est à
+// usage unique, l'intersection réapparaît une fois le portail consommé.
+function createPortals(scene, portals) {
+    portals.forEach((pair, key) => {
+        const make = (end, suffix) => {
+            const portal = new Teleporteur(`portal${key}-${suffix}`, scene, end.x, end.y, 'portal', scene.player, !!pair.consumable);
+            const lines = new Set(end.lines.map(k => scene.lines[k]).filter(Boolean));
+            const intersection = scene.intersections.find(i => i.visible && Phaser.Math.Distance.Between(i.x, i.y, end.x, end.y) < 1);
+            if (intersection) {
+                intersection.lines.forEach(line => lines.add(line));
+                intersection.setVisible(false).disableInteractive();
+                portal.replaces = intersection;
+            }
+            lines.forEach(line => {
+                portal.addLine(line);
+                line.addObjects([portal]);
+            });
+            return portal;
+        };
+        const a = make(pair.a, 'a');
+        const b = make(pair.b, 'b');
+        a.setBrother(b);
+        b.setBrother(pair.oneWay ? null : a);
+        a.partner = b;
+        b.partner = a;
+    });
 }
