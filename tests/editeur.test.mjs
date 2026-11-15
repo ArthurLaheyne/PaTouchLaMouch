@@ -100,6 +100,25 @@ describe('éditeur', () => {
         assert.equal(state.gameOver, true);
     });
 
+    it('mode suppression : dragon, puis fil avec ce qui est posé dessus', async () => {
+        await game.startScene('Sandbox', {});
+        await game.key('KeyL');
+        await game.click(100, 300); await game.click(700, 300); // H
+        await game.click(400, 100); await game.click(400, 500); // V
+        await game.key('KeyG'); await game.click(250, 300);
+        await game.key('KeyQ'); await game.click(150, 300);
+        await game.key('KeyA'); await game.click(400, 450);
+        await game.key('KeyP'); await game.click(600, 300); await game.click(400, 200);
+        const counts = () => sandbox(s => ({ lines: s.lines.filter(Boolean).length, dragons: s.dragons.filter(Boolean).length,
+            depart: !!s.depart, arrivee: !!s.arrivee, portals: s.portals.length }));
+        assert.deepEqual(await counts(), { lines: 2, dragons: 1, depart: true, arrivee: true, portals: 1 });
+        await game.key('KeyS');
+        await game.click(250, 300); // croix du dragon
+        assert.deepEqual(await counts(), { lines: 2, dragons: 0, depart: true, arrivee: true, portals: 1 });
+        await game.click(400, 500); // croix au bout de V : V, l'arrivée et la paire de portails disparaissent
+        assert.deepEqual(await counts(), { lines: 1, dragons: 0, depart: true, arrivee: false, portals: 0 });
+    });
+
     it('rouvre un niveau sans décalage et le remplace', async () => {
         const id = (await api(server.url, { json: JSON.parse(readFileSync(new URL('./fixtures/ancien-niveau.json', import.meta.url))) })).body.id;
         await game.startScene('Niveaux');
