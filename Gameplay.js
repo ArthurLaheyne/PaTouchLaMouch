@@ -25,6 +25,8 @@ export function startGameplay(scene) {
     targets.forEach(object => setCircleBody(object, TARGET_RADIUS));
     scene.dragons.forEach(dragon => setCircleBody(dragon, DRAGON_RADIUS));
 
+    decoratePortals(scene);
+
     // Plusieurs objets peuvent se superposer (ex. portail en bout de fil sur un diamant)
     scene.input.setTopOnly(false);
 
@@ -84,6 +86,7 @@ function teleport(scene, portal) {
     player.body.reset(exit.x, exit.y);
     player.setObject(exit);
     player.setLines(exit.lines);
+    scene.portalLink.clear();
     if (portal.isConsumable) {
         consume(portal);
         consume(portal.partner || exit);
@@ -100,6 +103,9 @@ function consume(portal) {
     if (portal.replaces) {
         portal.replaces.setVisible(true).setInteractive();
     }
+    if (portal.ring) {
+        portal.ring.destroy();
+    }
     portal.destroy(true);
 }
 
@@ -114,4 +120,87 @@ function endGame(scene, imageKey) {
     scene.add.image(550, 400, imageKey)
         .setInteractive()
         .on('pointerdown', () => scene.scene.restart());
+}
+
+// ---- Indices visuels des portails ----
+// Une couleur par paire (anneau autour des portails) ; au survol d'un portail, une liaison en pointillés vers son partenaire.
+// Paire à sens unique : flèche vers la sortie, et sortie semi-transparente (elle ne mène nulle part).
+// Paire à usage unique : anneau en pointillés (le joueur doit savoir qu'elle disparaîtra après usage).
+
+const PORTAL_COLORS = [0x4fc3f7, 0xffb74d, 0xce93d8, 0x81c784, 0xf06292, 0xfff176, 0x90a4ae, 0xff8a65];
+const PORTAL_RADIUS = 22; // la liaison s'arrête au bord des portails
+
+function decoratePortals(scene) {
+    scene.portalLink = scene.add.graphics().setDepth(5);
+    const portals = scene.objects.filter(object => object instanceof Teleporteur);
+    const done = new Set();
+    let pairIndex = 0;
+    portals.forEach(portal => {
+        if (done.has(portal)) {
+            return;
+        }
+        const partner = portal.partner || portal.brother;
+        if (!partner) {
+            return;
+        }
+        // Sens unique : un seul des deux portails a un "frère" (sa destination)
+        const source = portal.brother ? portal : partner;
+        const exit = source === portal ? partner : portal;
+        const oneWay = !exit.brother;
+        const color = PORTAL_COLORS[pairIndex++ % PORTAL_COLORS.length];
+        [source, exit].forEach(p => {
+            done.add(p);
+            // Anneau plutôt que teinte : le sprite, sombre et bleuté, rend mal les teintes
+            p.ring = drawRing(scene, p.x, p.y, color, source.isConsumable).setDepth(p.depth);
+            p.on('pointerover', () => drawPortalLink(scene, source, exit, color, oneWay));
+            p.on('pointerout', () => scene.portalLink.clear());
+        });
+        if (oneWay) {
+            exit.setAlpha(0.55);
+            exit.ring.setAlpha(0.55);
+        }
+    });
+}
+
+function drawRing(scene, x, y, color, dashed) {
+    const g = scene.add.graphics();
+    g.lineStyle(4, color, 1);
+    const radius = 21, segments = dashed ? 10 : 1;
+    for (let i = 0; i < segments; i++) {
+        const start = (i / segments) * Math.PI * 2;
+        const end = dashed ? start + (Math.PI * 2 / segments) * 0.55 : Math.PI * 2;
+        g.beginPath();
+        g.arc(x, y, radius, start, end);
+        g.strokePath();
+    }
+    return g;
+}
+
+function drawPortalLink(scene, from, to, color, arrow) {
+    const g = scene.portalLink;
+    g.clear();
+    if (!from.active || !to.active) {
+        return;
+    }
+    const length = Phaser.Math.Distance.BetweenPoints(from, to);
+    if (length <= PORTAL_RADIUS * 2) {
+        return;
+    }
+    const ux = (to.x - from.x) / length, uy = (to.y - from.y) / length;
+    const x1 = from.x + ux * PORTAL_RADIUS, y1 = from.y + uy * PORTAL_RADIUS;
+    const x2 = to.x - ux * PORTAL_RADIUS, y2 = to.y - uy * PORTAL_RADIUS;
+    g.lineStyle(3, color, 0.9);
+    const dash = 10, gap = 7, total = length - PORTAL_RADIUS * 2;
+    for (let d = 0; d < total; d += dash + gap) {
+        const e = Math.min(d + dash, total);
+        g.lineBetween(x1 + ux * d, y1 + uy * d, x1 + ux * e, y1 + uy * e);
+    }
+    if (arrow) {
+        const size = 14;
+        g.fillStyle(color, 0.95);
+        g.fillTriangle(
+            x2, y2,
+            x2 - ux * size - uy * size * 0.6, y2 - uy * size + ux * size * 0.6,
+            x2 - ux * size + uy * size * 0.6, y2 - uy * size - ux * size * 0.6);
+    }
 }
