@@ -1,4 +1,5 @@
-# Déploie le jeu sur l'hébergement OVH (www.arthurlaheyne.fr/patouchlamouch/) à chaque push sur main.
+# Déploie le jeu sur l'hébergement OVH (www.arthurlaheyne.fr/patouchlamouch/) à chaque push sur main,
+# après les tests (job "tests").
 #
 # Secrets à créer dans GitHub (Settings > Secrets and variables > Actions) :
 #   FTP_USERNAME   login FTP-SSH OVH (espace client OVH > Hébergement > FTP-SSH)
@@ -26,7 +27,23 @@ env:
   REMOTE_DIR: www/patouchlamouch
 
 jobs:
+  # Tests du jeu, de l'éditeur et de l'API dans un vrai navigateur (voir tests/) : le déploiement n'a lieu que s'ils passent
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installation de Playwright et de Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Tests
+        run: npm test
+
   deploy:
+    needs: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

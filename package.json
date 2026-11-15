@@ -1,5 +1,11 @@
 {
   "dependencies": {
     "http-server": "^14.1.1"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec \"tests/*.test.mjs\""
   }
 }
