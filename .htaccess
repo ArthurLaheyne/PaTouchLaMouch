@@ -3,7 +3,7 @@ Options -Indexes
 DirectoryIndex game-niveau1.html
 
 # Fichiers internes jamais servis
-<FilesMatch "^(save-level\.config\.php|\.ftp-deploy-sync-state\.json|package(-lock)?\.json|\.gitignore|levels\.bak\.json)$">
+<FilesMatch "^(save-level\.config\.php|package(-lock)?\.json|\.gitignore|levels\.bak\.json)$">
     Require all denied
 </FilesMatch>
 

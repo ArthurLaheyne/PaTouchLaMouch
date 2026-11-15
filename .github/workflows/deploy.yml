@@ -1,13 +1,13 @@
 # Déploie le jeu sur l'hébergement OVH (www.arthurlaheyne.fr/patouchlamouch/) à chaque push sur main.
 #
 # Secrets à créer dans GitHub (Settings > Secrets and variables > Actions) :
-#   FTP_SERVER     ex. ftp.clusterXXX.hosting.ovh.net (espace client OVH > Hébergement > FTP-SSH)
-#   FTP_USERNAME   login FTP
-#   FTP_PASSWORD   mot de passe FTP
+#   FTP_USERNAME   login FTP-SSH OVH (espace client OVH > Hébergement > FTP-SSH)
+#   FTP_PASSWORD   mot de passe de ce login
 #   LEVEL_PASSWORD mot de passe demandé par la Sandbox pour enregistrer un niveau
 #
-# Seuls les fichiers modifiés sont envoyés (état gardé sur le serveur dans .ftp-deploy-sync-state.json).
-# data/ (niveaux enregistrés depuis la Sandbox) n'est jamais touché.
+# Envoi en SFTP (OVH ne gère pas le FTPS). Les dates des fichiers sont celles de leur dernier commit,
+# ce qui permet à lftp de ne renvoyer que les fichiers modifiés.
+# data/ (niveaux enregistrés depuis la Sandbox) n'est jamais touché, et rien n'est supprimé sur le serveur.
 name: Déploiement OVH
 
 on:
@@ -19,17 +19,30 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
+env:
+  SFTP_HOST: ssh.cluster029.hosting.ovh.net
+  SFTP_HOST_KEY: ssh.cluster029.hosting.ovh.net ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPHzGPnvg+XUpaMELjQ4AIj/6pkjvvHYCUxDVpcdaC8T
+  REMOTE_DIR: www/patouchlamouch
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Vérification de la syntaxe
         run: |
           php -l save-level.php
           for f in *.js; do node --check --input-type=module < "$f"; done
           python3 -c "import json; json.load(open('levels.json'))"
+
+      - name: Dates des fichiers = date du dernier commit
+        run: |
+          git ls-files -z | while IFS= read -r -d '' f; do
+            touch -d "@$(git log -1 --format=%ct -- "$f")" "$f"
+          done
 
       - name: Génération de la configuration de save-level.php
         env:
@@ -38,21 +51,27 @@ jobs:
           test -n "$LEVEL_PASSWORD" || { echo "Secret LEVEL_PASSWORD manquant"; exit 1; }
           php -r '$h = password_hash(getenv("LEVEL_PASSWORD"), PASSWORD_DEFAULT); echo "<?php\nreturn [\"password_hash\" => " . var_export($h, true) . "];\n";' > save-level.config.php
 
-      - name: Envoi FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          server-dir: www/patouchlamouch/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .github/**
-            node_modules/**
-            data/**
-            export-dynamodb-*/**
-            package.json
-            package-lock.json
-            assets/*.xcf
+      - name: Envoi SFTP
+        env:
+          SFTP_USER: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }} # lu par lftp via --env-password
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp > /dev/null
+          mkdir -p ~/.ssh
+          echo "$SFTP_HOST_KEY" > ~/.ssh/known_hosts
+          lftp -c "
+            set net:max-retries 2
+            set net:timeout 20
+            set sftp:connect-program 'ssh -a -x -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts'
+            open --user \"$SFTP_USER\" --env-password sftp://$SFTP_HOST
+            mirror --reverse --verbose --no-perms \
+              --exclude '^\.git/' \
+              --exclude '^\.github/' \
+              --exclude '^\.gitignore$' \
+              --exclude '^node_modules/' \
+              --exclude '^data/' \
+              --exclude '^export-dynamodb-' \
+              --exclude '^package(-lock)?\.json$' \
+              --exclude '\.xcf$' \
+              ./ $REMOTE_DIR
+          "
