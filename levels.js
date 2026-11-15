@@ -1,23 +1,29 @@
 // Chargement des niveaux.
 //
-// - data/levels.json : niveaux enregistrés depuis la Sandbox via save-level.php (uniquement sur le serveur,
+// - levels.json : niveaux officiels, versionnés dans git et déployés (ex. "niveau-1", lancé par « Click to Start »)
+// - data/levels.json : niveaux créés ou modifiés en ligne via save-level.php (uniquement sur le serveur,
 //   jamais écrasé par le déploiement)
-// - levels.json : niveaux versionnés dans git (repli si data/levels.json n'existe pas encore, ex. en local)
-const SOURCES = ["data/levels.json", "levels.json"];
+// Les deux listes sont fusionnées ; un niveau officiel modifié dans l'éditeur (même id dans data/levels.json)
+// remplace la version officielle.
+
+async function fetchLevels(url) {
+    try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (error) {
+        console.error(url, error.message);
+    }
+    return [];
+}
 
 export async function loadLevels() {
-    for (const url of SOURCES) {
-        try {
-            const response = await fetch(url, { cache: "no-store" });
-            if (response.ok) {
-                return await response.json();
-            }
-        } catch (error) {
-            console.error(url, error.message);
-        }
-    }
-    console.error("Aucun fichier de niveaux n'a pu être chargé");
-    return [];
+    const [official, online] = await Promise.all([fetchLevels("levels.json"), fetchLevels("data/levels.json")]);
+    const onlineById = new Map(online.map(level => [level.id, level]));
+    const merged = official.map(level => onlineById.get(level.id) || level);
+    const officialIds = new Set(official.map(level => level.id));
+    return [...merged, ...online.filter(level => !officialIds.has(level.id))];
 }
 
 export function isPlayable(level) {

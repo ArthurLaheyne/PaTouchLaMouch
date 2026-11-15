@@ -30,7 +30,8 @@ export class MainMenu extends Phaser.Scene
         ]
         this.clickStart = this.add.text(400, 450, clickStartText, textStyle).setAlign('center').setOrigin(0.5).setInteractive();
         this.clickStart.on('pointerdown', () => {
-            this.scene.start('Game');
+            // Niveau 1 : niveau officiel de levels.json (anciennement écrit en dur dans Game.js)
+            this.scene.start('Niveau', { level_id: 'niveau-1', backTo: 'MainMenu' });
             this.scale.startFullscreen();
         });
         this.clickStart.on('pointerover', () => {

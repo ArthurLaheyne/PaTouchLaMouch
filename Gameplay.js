@@ -1,6 +1,6 @@
 import { Intersection, Teleporteur, Arrivee, Dragon } from './Objects.js';
 
-// Déplacement du joueur et fin de partie, communs aux scènes Game et Niveau.
+// Déplacement du joueur et fin de partie de la scène Niveau.
 //
 // L'arrivée sur la cible et le contact avec un dragon sont détectés par les collisions Arcade.
 // Elles sont évaluées à chaque pas physique (1/60 s, soit 3,3 px à 200 px/s) et non à chaque image :

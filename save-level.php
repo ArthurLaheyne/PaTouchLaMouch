@@ -10,8 +10,9 @@
 // "portals" (facultatif) : paires { a: {x, y, lines}, b: {x, y, lines}, consumable, oneWay }. Absent, le jeu met un
 // portail à chaque bout de chaque fil (anciens niveaux) ; présent, même vide, seuls ces portails existent.
 //
-// Les niveaux sont dans data/levels.json (initialisé depuis levels.json au premier enregistrement),
-// la version précédente dans data/levels.bak.json.
+// Les niveaux créés en ligne sont dans data/levels.json, la version précédente dans data/levels.bak.json.
+// levels.json contient les niveaux officiels (versionnés dans git) : en remplacer un crée sa version modifiée
+// dans data/levels.json (même id, elle prend le dessus dans le jeu) ; ils ne se suppriment pas en ligne.
 // Le hash du mot de passe est dans save-level.config.php, généré par la CI (jamais versionné).
 
 header('Content-Type: application/json; charset=utf-8');
@@ -206,7 +207,7 @@ function release($fh) {
 
 $current = stream_get_contents($fh);
 if (trim($current) === '') {
-    $current = @file_get_contents(__DIR__ . '/levels.json') ?: '[]';
+    $current = '[]';
 }
 $levels = json_decode($current, true);
 if (!is_array($levels)) {
@@ -227,8 +228,16 @@ if ($action === 'create') {
         }
     }
     if ($index === null) {
-        release($fh);
-        reply(404, ['error' => 'Niveau introuvable']);
+        $official = json_decode(@file_get_contents(__DIR__ . '/levels.json') ?: '[]', true);
+        $isOfficial = is_array($official) && in_array($id, array_column($official, 'id'), true);
+        if ($isOfficial && $action === 'replace') {
+            // Première modification d'un niveau officiel : sa version modifiée est ajoutée aux niveaux en ligne
+            $levels[] = ['id' => $id, 'datetime' => $now, 'json' => $levelJson];
+            $index = count($levels) - 1;
+        } else {
+            release($fh);
+            reply($isOfficial ? 403 : 404, ['error' => $isOfficial ? 'Niveau officiel : il se supprime dans le dépôt git' : 'Niveau introuvable']);
+        }
     }
     if ($action === 'replace') {
         $levels[$index]['json'] = $levelJson;

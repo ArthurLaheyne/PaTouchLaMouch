@@ -12,6 +12,8 @@ export class Niveau extends Phaser.Scene
     init (data)
     {
         this.level_id = data.level_id;
+        // Scène où ramène le bouton retour : la liste des niveaux, ou le menu pour le niveau 1 lancé par « Click to Start »
+        this.backTo = data.backTo || 'Niveaux';
     }
 
     preload() {
@@ -81,7 +83,7 @@ export class Niveau extends Phaser.Scene
         
         const button_back = this.add.image(800 - 45, 225, 'back', 0).setOrigin(0.5, 0.5).setInteractive();
         button_back.on('pointerdown', (event) => {
-            this.scene.start('Niveaux');
+            this.scene.start(this.backTo);
         });
         button_back.on('pointerover', () => {
             this.tweens.add({
