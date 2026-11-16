@@ -35,6 +35,29 @@ describe('jeu', () => {
         assert.deepEqual([state.x, state.y, state.gameOver], [300, 120, false]);
     });
 
+    it('au survol, le chemin vers un objet atteignable est mis en lumière', async () => {
+        await game.startScene('Niveau', { level_id: 'niveau-1' });
+        const hover = (x, y) => game.page.evaluate(([x, y]) => {
+            const s = game.scene.getScene('Niveau');
+            s.objects.filter(o => o.active && Math.abs(o.x - x) < 1 && Math.abs(o.y - y) < 1).forEach(o => o.emit('pointerover'));
+            return s.pathHighlight.commandBuffer.length;
+        }, [x, y]);
+        const out = () => game.page.evaluate(() => {
+            const s = game.scene.getScene('Niveau');
+            s.objects.forEach(o => o.emit('pointerout'));
+            return s.pathHighlight.commandBuffer.length;
+        });
+        assert.ok(await hover(300, 120) > 0, 'intersection atteignable : chemin dessiné');
+        assert.equal(await out(), 0);
+        assert.equal(await hover(175, 135), 0, 'intersection non atteignable : rien');
+        await out();
+        const order = await game.page.evaluate(() => {
+            const s = game.scene.getScene('Niveau'), list = s.children.list;
+            return [list.indexOf(s.graphics), list.indexOf(s.pathHighlight), list.indexOf(s.intersections[0])];
+        });
+        assert.ok(order[0] < order[1] && order[1] < order[2], 'au-dessus des fils, sous les objets : ' + order);
+    });
+
     it('meurt sur un dragon, puis ne peut plus bouger', async () => {
         await game.startScene('Niveau', { level_id: 'niveau-1' });
         let state = await game.play('arrivee'); // dragon en (450, 300) sur le chemin

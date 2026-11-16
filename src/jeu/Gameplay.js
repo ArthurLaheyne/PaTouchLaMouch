@@ -27,6 +27,15 @@ export function startGameplay(scene) {
 
     decoratePortals(scene);
 
+    // Chemin mis en lumière au survol d'un objet atteignable : le segment de fil que le joueur va parcourir
+    // Juste au-dessus du dessin des fils, sous les diamants, portails et dragons
+    scene.pathHighlight = scene.add.graphics();
+    scene.children.moveTo(scene.pathHighlight, scene.children.getIndex(scene.graphics) + 1);
+    scene.objects.forEach(object => {
+        object.on('pointerover', () => { scene.hovered = object; showPath(scene); });
+        object.on('pointerout', () => { if (scene.hovered === object) scene.hovered = null; showPath(scene); });
+    });
+
     // Plusieurs objets peuvent se superposer (ex. portail en bout de fil sur un diamant)
     scene.input.setTopOnly(false);
 
@@ -36,6 +45,7 @@ export function startGameplay(scene) {
                 return;
             }
             player.setObject(object);
+            scene.pathHighlight.clear();
             if (!(object instanceof Intersection)) {
                 player.setLines(object.lines);
             }
@@ -64,6 +74,8 @@ export function startGameplay(scene) {
 function arrive(scene, object) {
     const player = scene.player;
     player.body.reset(object.x, object.y);
+    // La souris est peut-être déjà sur le prochain objet : on montre son chemin depuis la nouvelle position
+    scene.time.delayedCall(0, () => showPath(scene));
 
     if (object instanceof Intersection) {
         player.setLines(object.lines);
@@ -78,6 +90,17 @@ function arrive(scene, object) {
         player.setLines(object.lines);
         endGame(scene, 'bravo');
     }
+}
+
+const PATH_COLOR = 0xffffff;
+
+function showPath(scene) {
+    const g = scene.pathHighlight, player = scene.player, target = scene.hovered;
+    g.clear();
+    if (!target || !target.active || scene.gameOver || player.body.speed > 0 || !target.isReachable()) return;
+    if (Phaser.Math.Distance.BetweenPoints(player, target) < 1) return;
+    g.lineStyle(10, PATH_COLOR, 0.45);
+    g.lineBetween(player.x, player.y, target.x, target.y);
 }
 
 function teleport(scene, portal) {
