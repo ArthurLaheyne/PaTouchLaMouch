@@ -5,7 +5,9 @@
 // Sens unique : de a vers b. Couleur de la paire = son rang (même ordre que dans le jeu).
 import { EditorObject } from './objets.js';
 import { placeOnLine } from './ancrage.js';
-import { PORTAL_COLORS, strokeRing, strokePortalLink } from '../jeu/Gameplay.js';
+import { PORTAL_COLORS, strokeRing } from '../jeu/Gameplay.js';
+
+const PORTAL_RADIUS = 22; // la liaison s'arrête au bord des portails
 
 export function newPortalEnd(scene, x, y) {
     return new EditorObject("portal", scene, x, y, 'portal');
@@ -103,5 +105,30 @@ export function closePortalPanel(scene) {
     if (scene.portalPanel) {
         scene.portalPanel.forEach(text => text.destroy());
         delete scene.portalPanel;
+    }
+}
+
+// Liaison en pointillés entre deux portails, avec une flèche vers "to" si arrow (éditeur uniquement)
+export function strokePortalLink(g, from, to, color, arrow) {
+    const length = Phaser.Math.Distance.BetweenPoints(from, to);
+    if (length <= PORTAL_RADIUS * 2) {
+        return;
+    }
+    const ux = (to.x - from.x) / length, uy = (to.y - from.y) / length;
+    const x1 = from.x + ux * PORTAL_RADIUS, y1 = from.y + uy * PORTAL_RADIUS;
+    const x2 = to.x - ux * PORTAL_RADIUS, y2 = to.y - uy * PORTAL_RADIUS;
+    g.lineStyle(3, color, 0.9);
+    const dash = 10, gap = 7, total = length - PORTAL_RADIUS * 2;
+    for (let d = 0; d < total; d += dash + gap) {
+        const e = Math.min(d + dash, total);
+        g.lineBetween(x1 + ux * d, y1 + uy * d, x1 + ux * e, y1 + uy * e);
+    }
+    if (arrow) {
+        const size = 14;
+        g.fillStyle(color, 0.95);
+        g.fillTriangle(
+            x2, y2,
+            x2 - ux * size - uy * size * 0.6, y2 - uy * size + ux * size * 0.6,
+            x2 - ux * size + uy * size * 0.6, y2 - uy * size - ux * size * 0.6);
     }
 }

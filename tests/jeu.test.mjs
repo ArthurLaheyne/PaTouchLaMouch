@@ -81,6 +81,12 @@ describe('jeu', () => {
         it('paire permanente : aller-retour, sortie sur le carrefour, victoire', async () => {
             await game.startScene('Niveau', { level_id: await create(level({})) });
             assert.deepEqual(await intersection(), { visible: false, clickable: false });
+            // Pas de liaison en pointillés au survol en jeu (seulement dans l'éditeur)
+            const graphicsCount = () => game.page.evaluate(() => game.scene.getScene('Niveau').children.list.filter(o => o.type === 'Graphics').length);
+            const before = await graphicsCount();
+            await game.page.evaluate(() => game.scene.getScene('Niveau').objects.find(o => o.name === 'portal0-a').emit('pointerover'));
+            assert.equal(await graphicsCount(), before);
+            assert.equal(await game.page.evaluate(() => game.scene.getScene('Niveau').portalLink), undefined);
             let state = await game.play('portal0-a');
             assert.deepEqual([state.x, state.y, state.lines], [500, 450, ['line1', 'line2']]);
             state = await game.play('portal0-b'); // on est dessus : il s'active

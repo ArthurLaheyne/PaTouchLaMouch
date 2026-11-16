@@ -86,7 +86,6 @@ function teleport(scene, portal) {
     player.body.reset(exit.x, exit.y);
     player.setObject(exit);
     player.setLines(exit.lines);
-    scene.portalLink.clear();
     if (portal.isConsumable) {
         consume(portal);
         consume(portal.partner || exit);
@@ -123,15 +122,14 @@ function endGame(scene, imageKey) {
 }
 
 // ---- Indices visuels des portails ----
-// Une couleur par paire (anneau autour des portails) ; au survol d'un portail, une liaison en pointillés vers son partenaire.
-// Paire à sens unique : flèche vers la sortie, et sortie semi-transparente (elle ne mène nulle part).
+// Une couleur par paire (anneau autour des portails). Pas de liaison entre les deux portails en jeu (seulement dans
+// l'éditeur) : le joueur associe les paires par leur couleur.
+// Paire à sens unique : sortie semi-transparente (elle ne mène nulle part).
 // Paire à usage unique : anneau en pointillés (le joueur doit savoir qu'elle disparaîtra après usage).
 
 export const PORTAL_COLORS = [0x4fc3f7, 0xffb74d, 0xce93d8, 0x81c784, 0xf06292, 0xfff176, 0x90a4ae, 0xff8a65];
-const PORTAL_RADIUS = 22; // la liaison s'arrête au bord des portails
 
 function decoratePortals(scene) {
-    scene.portalLink = scene.add.graphics().setDepth(5);
     const portals = scene.objects.filter(object => object instanceof Teleporteur);
     const done = new Set();
     let pairIndex = 0;
@@ -152,8 +150,6 @@ function decoratePortals(scene) {
             done.add(p);
             // Anneau plutôt que teinte : le sprite, sombre et bleuté, rend mal les teintes
             p.ring = drawRing(scene, p.x, p.y, color, source.isConsumable).setDepth(p.depth);
-            p.on('pointerover', () => drawPortalLink(scene, source, exit, color, oneWay));
-            p.on('pointerout', () => scene.portalLink.clear());
         });
         if (oneWay) {
             exit.setAlpha(0.55);
@@ -180,34 +176,3 @@ export function strokeRing(g, x, y, color, dashed) {
     return g;
 }
 
-function drawPortalLink(scene, from, to, color, arrow) {
-    scene.portalLink.clear();
-    if (from.active && to.active) {
-        strokePortalLink(scene.portalLink, from, to, color, arrow);
-    }
-}
-
-// Liaison en pointillés entre deux portails, avec une flèche vers "to" si arrow (aussi utilisé par l'éditeur)
-export function strokePortalLink(g, from, to, color, arrow) {
-    const length = Phaser.Math.Distance.BetweenPoints(from, to);
-    if (length <= PORTAL_RADIUS * 2) {
-        return;
-    }
-    const ux = (to.x - from.x) / length, uy = (to.y - from.y) / length;
-    const x1 = from.x + ux * PORTAL_RADIUS, y1 = from.y + uy * PORTAL_RADIUS;
-    const x2 = to.x - ux * PORTAL_RADIUS, y2 = to.y - uy * PORTAL_RADIUS;
-    g.lineStyle(3, color, 0.9);
-    const dash = 10, gap = 7, total = length - PORTAL_RADIUS * 2;
-    for (let d = 0; d < total; d += dash + gap) {
-        const e = Math.min(d + dash, total);
-        g.lineBetween(x1 + ux * d, y1 + uy * d, x1 + ux * e, y1 + uy * e);
-    }
-    if (arrow) {
-        const size = 14;
-        g.fillStyle(color, 0.95);
-        g.fillTriangle(
-            x2, y2,
-            x2 - ux * size - uy * size * 0.6, y2 - uy * size + ux * size * 0.6,
-            x2 - ux * size + uy * size * 0.6, y2 - uy * size - ux * size * 0.6);
-    }
-}
